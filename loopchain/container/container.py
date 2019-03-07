@@ -35,7 +35,10 @@ class ServerType(Enum):
     GRPC = 3
 
 
+
 class Container(CommonProcess, MonitorAdapter):
+    """컨테이너의 정체는.. 피어 간 통신에서 추상클래스처럼 쓰일 수 있도록 만든 뼈대..인건가?
+    얘가 또 CommonProcess를 가져오네."""
 
     def __init__(self,
                  port,
@@ -81,8 +84,11 @@ class Container(CommonProcess, MonitorAdapter):
         util.exit_and_msg(f"Score Container({self._channel}) Down!")
 
     def run(self, conn, event: multiprocessing.Event):
+        """실제로는 이 것이 작동할 것 같아. rest run 할 때 멀티프로세싱으로 뜨는 것은. 물론 덮어쓴 RestService의 run이겠지만."""
         logging.debug("Container run...")
+        print("\n\n\nrunrunrunrunrunrunrunrunrun\n")
 
+        # todo: GRPC인 경우..? 언제 여기를 오게되지?
         if self._type == ServerType.GRPC:
             logging.info(f'Container run grpc port {self._port}')
 
@@ -93,6 +99,8 @@ class Container(CommonProcess, MonitorAdapter):
             GRPCHelper().add_server_port(server, '[::]:' + str(self._port), conf.SSLAuthType.none)
 
             logging.info(f'Container run complete grpc port {self._port}')
+
+        # 여기가 rest 띄우는 곳이군. 새로운 launcher를 띄우는 것을 확인할 수 있다.
         elif self._type == ServerType.REST_PEER:
             args = ['python3', '-m', 'loopchain', 'rest', '-p', str(self._port)]
             args += command_arguments.get_raw_commands_by_filter(
@@ -102,9 +110,11 @@ class Container(CommonProcess, MonitorAdapter):
                 command_arguments.Type.ConfigurationFilePath,
                 command_arguments.Type.RadioStationTarget
             )
+            print("\n 실질적으로 rest launcher는 이 시점같은데...")
             server = CommonSubprocess(args)
             api_port = self._port + conf.PORT_DIFF_REST_SERVICE_CONTAINER
-            server.set_proctitle(f"{setproctitle.getproctitle()} RestServer api_port({api_port})")
+            server.set_proctitle(f"{setproctitle.getproctitle()} 레스트 서버ㅋ({api_port})") # 여기서 설정한 문자열로 프로세스를 띄우는 것 같아.
+        # todo: 여기는 언제 오게 되는 것인가?
         else:
             args = ['python3', '-m', 'loopchain', 'rest-rs', '-p', str(self._port)]
             args += command_arguments.get_raw_commands_by_filter(
@@ -115,7 +125,7 @@ class Container(CommonProcess, MonitorAdapter):
             api_port = self._port + conf.PORT_DIFF_REST_SERVICE_CONTAINER
             server = CommonSubprocess(args)
             server.set_proctitle(f"{setproctitle.getproctitle()} RestServerRS api_port({api_port})")
-
+        # 여길 지나면 이제 peer 서비스에서 rest 띄우는 부분은 종료되는 것 같다.
         logging.info(f'Container run complete port {self._port}')
 
         # complete init

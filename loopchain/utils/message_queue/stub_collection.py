@@ -53,6 +53,8 @@ class StubCollection(metaclass=SingletonMetaClass):
         await stub.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY)
         self.channel_stubs[channel_name] = stub
 
+        print("\n\n\n채널 스텁 만들었다. -0 왜 여러개가 뜨지? ")
+
         logging.debug(f"ChannelTasks : {channel_name}, Queue : {queue_name}")
         return stub
 
@@ -66,6 +68,7 @@ class StubCollection(metaclass=SingletonMetaClass):
         await stub.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY)
         self.channel_tx_receiver_stubs[channel_name] = stub
 
+        print("\n\n\n채널 티엑쓰 리씨버 만들었다. -0 왜 여러개가 뜨지? ")
         logging.debug(f"ChannelTxReceiverTasks : {channel_name}, Queue : {queue_name}")
         return stub
 
@@ -84,6 +87,7 @@ class StubCollection(metaclass=SingletonMetaClass):
         from loopchain import configure as conf
         from loopchain.scoreservice import IconScoreInnerStub
 
+        print("\n\n\n아이콘 스코어 스텁 만들었따!!!! - async라 늦게 켜지나.")
         queue_name = conf.ICON_SCORE_QUEUE_NAME_FORMAT.format(
             channel_name=channel_name, amqp_key=self.amqp_key
         )

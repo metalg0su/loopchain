@@ -48,6 +48,7 @@ class CommonService(CommonThread):
         self.__group_id = ""
 
     def start(self, port, peer_id="", group_id=""):
+        print("\n\n\n커먼서비스 스타트 메소드 실행!!!!\n\n\n")
         self.__port = port
         if self.__inner_service_port is None:
             self.__inner_service_port = int(port) + conf.PORT_DIFF_INNER_SERVICE

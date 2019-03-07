@@ -36,10 +36,12 @@ class CommonProcess:
         return self.__run_process.is_alive()
 
     def start(self):
+        print("\n\n커먼프로세스 스타트!!")
         parent_conn, child_conn = multiprocessing.Pipe()
         event = multiprocessing.Event()
 
         self.__conn = parent_conn
+        # run을 여러개 돌리는군..>? 아무것도 없는디
         self.__run_process = multiprocessing.Process(target=self.run, args=(child_conn, event))
         self.__run_process.start()
 
@@ -87,6 +89,7 @@ class CommonProcess:
         """멀티 프로세스로 동작할 루프를 정의한다.
         sample 구현을 참고한다.
         """
+        print("\n\n\n커먼프로세스 run!!!\n\n\n")
 
         event.set()
         # # sample 구현

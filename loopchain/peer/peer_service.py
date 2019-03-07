@@ -49,6 +49,7 @@ class PeerService:
         """
         node_type = node_type or conf.NodeType.CommunityNode
 
+        # TODO: 이게 뭐지?
         self.is_support_node_function = \
             partial(conf.NodeType.is_support_node_function, node_type=node_type)
 
@@ -59,11 +60,13 @@ class PeerService:
         if conf.ENABLE_PROCESS_MONITORING:
             Monitor().start()
 
+        # todo: 이게 여기 있는 이유는..? 가독성 떄문인가
         self.__node_type = node_type
 
         self.__radio_station_target = radio_station_target
         logging.info("Set Radio Station target is " + self.__radio_station_target)
 
+        # radio_station stub을 이용해서 radio_station과 상호작용을 할 것으로 기대되는군
         self.__radio_station_stub = None
 
         self.__level_db = None
@@ -74,13 +77,16 @@ class PeerService:
         if self.__group_id is None and conf.PEER_GROUP_ID != "":
             self.__group_id = conf.PEER_GROUP_ID
 
+        # common_service와 channel_infos가 몰려있구나
         self.__common_service = None
         self.__channel_infos = None
 
+        # rest도 보이고
         self.__rest_service = None
         self.__rest_proxy_server = None
 
         # peer status cache for channel
+        # todo: 무엇?
         self.status_cache = {}  # {channel:status}
 
         self.__score = None
@@ -139,8 +145,10 @@ class PeerService:
 
     @property
     def stub_to_radiostation(self):
+        # 일단 지금은 rs stub이라고 알아두자
         if self.__radio_station_stub is None:
             if self.is_support_node_function(conf.NodeFunction.Vote):
+
                 if conf.ENABLE_REP_RADIO_STATION:
                     self.__radio_station_stub = StubManager.get_stub_manager_to_server(
                         self.__radio_station_target,
@@ -176,6 +184,7 @@ class PeerService:
         self.__common_service.stop()
 
     def __get_channel_infos(self):
+        # 잘은 모르겠지만 rs에게 channel info를 물어봐서 가져오는 듯 하군
         # util.logger.spam(f"__get_channel_infos:node_type::{self.__node_type}")
         if self.is_support_node_function(conf.NodeFunction.Vote):
             if conf.ENABLE_REP_RADIO_STATION:
@@ -275,6 +284,7 @@ class PeerService:
         inner_service_port = conf.PORT_INNER_SERVICE or (self.__peer_port + conf.PORT_DIFF_INNER_SERVICE)
         self.__inner_target = conf.IP_LOCAL + ":" + str(inner_service_port)
 
+        print("\n\n\n 커먼 서비스 시자아아악!!!\n\n")
         self.__common_service = CommonService(loopchain_pb2, inner_service_port)
         self.__common_service.start(str(self.__peer_port), self.__peer_id, self.__group_id)
 
@@ -313,23 +323,34 @@ class PeerService:
         self.__inner_service = PeerInnerService(
             amqp_target, peer_queue_name, conf.AMQP_USERNAME, conf.AMQP_PASSWORD, peer_service=self)
 
+        # todo: rs 없이 돌아가는건 어떤 경로를 통해 그런건지 나중에 조사
         self.__channel_infos = self.__get_channel_infos()
         if not self.__channel_infos:
             util.exit_and_msg("There is no peer_list, initial network is not allowed without RS!")
 
+        # rest가 이 시점에서 시작된다.
+        print("\n\n\nreeeest 시작ㅇ!!!!!\n\n\n")
         self.__run_rest_services(port)
+        print("\n\n\nrestttt 코드 건넘!!!!\n\n\n")
         self.run_common_service()
+        print("\n\n\n커먼서비스으으으ㅡ응 끝!!!!\n\n\n")
 
         self.__close_kms_helper()
 
         stopwatch_duration = timeit.default_timer() - stopwatch_start
         logging.info(f"Start Peer Service at port: {port} start duration({stopwatch_duration})")
 
+        print("\n\n\n어싱크의 경계선!!!!!======================================================= ")
+
         async def _serve():
+            # 아래의 ready_tasks에서 채널 태스크를 띄우는 건가봄!
             await self.ready_tasks()
+            print("\n\n\n이너써어비스 - 커넥트 시작!")
             await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True)
+            print("\n\n\n이너써어비스 - 커넥트 끝!!")
 
             if conf.CHANNEL_BUILTIN:
+                print("\n\n\n빌트인 설정을 따르는듯?")
                 await self.serve_channels()
 
             if event_for_init is not None:
@@ -338,6 +359,7 @@ class PeerService:
             logging.info(f'peer_service: init complete peer: {self.peer_id}')
 
         loop = self.__inner_service.loop
+        # todo: 왜 여러개를 만드는거야 - 여러개가 아니라, 프로세스가 이미 이전에 여러개가 뜬 거 같음. 그래서 로그 보면 pid가 다른 것 같음.
         loop.create_task(_serve())
         loop.add_signal_handler(signal.SIGINT, self.close)
         loop.add_signal_handler(signal.SIGTERM, self.close)
@@ -394,10 +416,13 @@ class PeerService:
             self.__channel_services[channel_name] = service
 
     async def ready_tasks(self):
+        print("\n\n\n레디 태스크!!!!!")
         await StubCollection().create_peer_stub()  # for getting status info
 
         for channel_name, channel_info in self.__channel_infos.items():
+            print("\n\n\n채널네임, 인포", channel_name, channel_info)
+
+            # 여러 스텁을 만듦으로서, 외부와 통신할 준비를 하는 것 같군.
             await StubCollection().create_channel_stub(channel_name)
             await StubCollection().create_channel_tx_receiver_stub(channel_name)
-
             await StubCollection().create_icon_score_stub(channel_name)

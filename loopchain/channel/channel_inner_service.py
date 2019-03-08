@@ -372,6 +372,7 @@ class ChannelInnerTask:
             raise RuntimeError("Channel sub services need a loop")
         self.__loop_for_sub_services = loop
 
+        # 갑자기 여기서 버저너가 왜 나오는건가
         tx_versioner = self._channel_service.block_manager.get_blockchain().tx_versioner
 
         def crash_callback_in_join_thread(process: ModuleProcess):

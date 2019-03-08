@@ -284,7 +284,7 @@ class PeerService:
             KmsHelper().remove_agent_pin()
 
     def run_common_service(self):
-        print("\n\n\n 런 커먼 써어비쓰 시자아아악 - 누가 호출했는지 확인!!!\n\n")
+        print("\n\n\n 피어 써비스의 런 커먼 써어비쓰 시자아아악 !!!\n\n")
         inner_service_port = conf.PORT_INNER_SERVICE or (self.__peer_port + conf.PORT_DIFF_INNER_SERVICE)
         self.__inner_target = conf.IP_LOCAL + ":" + str(inner_service_port)
 
@@ -374,7 +374,8 @@ class PeerService:
                 event_for_init.set()
 
             logging.info(f'peer_service: init complete peer: {self.peer_id}')
-            print("\n\n\n끝: 어씽크의 경계선!!!이 과정은 한 번만 거치는 것 같음. ============================================================================\n\n\n")
+            print("\n\n\n끝: 어씽크의 경계선!!! 탈출 성공!!!!!!!! ============================================================================\n\n\n")
+            # nㅜㅜ 탈출 성공
 
         loop = self.__inner_service.loop
         # todo: 왜 여러개를 만드는거야 - 여러개가 아니라, 프로세스가 이미 이전에 여러개가 뜬 거 같음. 그래서 로그 보면 pid가 다른 것 같음.

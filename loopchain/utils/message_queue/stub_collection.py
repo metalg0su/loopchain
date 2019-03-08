@@ -41,7 +41,7 @@ class StubCollection(metaclass=SingletonMetaClass):
         from loopchain.peer import PeerInnerStub
 
         queue_name = conf.PEER_QUEUE_NAME_FORMAT.format(amqp_key=self.amqp_key)
-        self.peer_stub = PeerInnerStub(self.amqp_target, queue_name, conf.AMQP_USERNAME, conf.AMQP_PASSWORD)
+        self.peer_stub = PeerInnerStub(self.amqp_target, queue_name, conf.AMQP_USERNAME, conf.AMQP_PASSWORD) # todo : 이 부분이 이해가 안감...
         await self.peer_stub.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY)
         return self.peer_stub
 

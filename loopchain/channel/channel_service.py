@@ -133,6 +133,7 @@ class ChannelService:
             print("\n\n\n스텁 콜렉쎤.피어스텁 끝 \n\n\n")
             results = await StubCollection().peer_stub.async_task().get_channel_info_detail(ChannelProperty().name)
 
+            # 채널에게 물어봐서 정보를 가져오고, 그 데이터로 채널을 구성하는 건가
             print("\n\n\n채널.init~~~~~!!!~~~~~~")
             await self.init(*results) # todo: ?.. 재귀적으로 계속 채널을 시작하나..? - 아.. __init__이 아니잖아요ㅋ;
 
@@ -205,7 +206,8 @@ class ChannelService:
         ChannelProperty().node_type = conf.NodeType(node_type)
         ChannelProperty().score_package = score_package
 
-        print("\n\n\n채널 써어비쓰의 피어 매니저 호출.\n\n\n")
+        # 여기서부터는 프로세스를 새로 띄우지 않는 것 같다.
+        print("\n\n\n채널 써어비쓰의 피어 매니저 호출.\n\n\n") # 얘는 대체 목적이 뭐야?
         self.__peer_manager = PeerManager(ChannelProperty().name)
         print("\n\n\n채널 써어비쓰의 피어 오쓰 호출.\n\n\n")
         await self.__init_peer_auth()
@@ -235,6 +237,7 @@ class ChannelService:
             self.__init_node_subscriber()
 
         # todo: epoch라는 것을 시작하고 채널 서비스는 넘기는군 여기서부터 컨센서스로 넘어가는 건 아닐지
+        print("\n\n채널 써어비쓰가 블록 매니저의 이닛 에포크\n\n\n")
         self.block_manager.init_epoch()
 
     async def evaluate_network(self):
@@ -351,6 +354,7 @@ class ChannelService:
             )
             print("\n\n\n이 커먼서브프로세스는 스코어가 깨웠습니다!!!")
             self.__score_container = CommonSubprocess(process_args)
+            # 돌려놓고 이제 자기는 다시 돌아가야지
         print("\n\n\n 아이콘 스코어 스텁 만들기")
         await StubCollection().create_icon_score_stub(ChannelProperty().name)
         print("\n\n\n 아이콘 스코어 스텁에 접속")

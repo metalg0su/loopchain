@@ -352,6 +352,7 @@ def get_private_ip():
 
 
 def load_json_data(channel_manage_data_path: str):
+    print("\n\n\n채널 매니지 데이터 읽어옴!!!!\n\n\n")
     try:
         logging.debug(f"load_json_data() : try to load channel management"
                       f" data from json file ({channel_manage_data_path})")

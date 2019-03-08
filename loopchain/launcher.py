@@ -100,8 +100,10 @@ def check_port_available(port):
 
 
 def start_as_channel(args):
+    """이제 여기까지 도달했다. 런처 -> 피어써어비쓰 -> 레스트 -> 채널"""
+    print("\n\n\n ~~~~새로운 프로세스: 런처가 채널을 띄웠어~~~~\n\n\n")
     # apply default configure values
-    channel = args.channel or conf.LOOPCHAIN_DEFAULT_CHANNEL
+    channel = args.channel or conf.LOOPCHAIN_DEFAULT_CHANNEL # 채널명은 channel_infos에서.
     amqp_target = args.amqp_target or conf.AMQP_TARGET
     amqp_key = args.amqp_key or conf.AMQP_KEY
 
@@ -296,6 +298,7 @@ def start_as_peer(args, node_type=None):
                  f"radio station target({radio_station_target})")
 
     # 누구를 바라볼 지 등등 여러가지 설정을 끝냈으니 PeerService 시작
+    print("\n\n\n피어써어비쓰 시작 바로 전. 이 전에는 debug 인포만 있나봄\n\n\n")
     PeerService(
         radio_station_target=radio_station_target,
         node_type=node_type

@@ -22,11 +22,12 @@ class CommonSubprocess:
     """run stand alone process as a subprocess
     """
     def __init__(self, process_args):
+        print("\n\n\n 커먼 서브프로세스 이니셜라이즈 ----- 바로 위에 뭔 로그였는지 확인해라. 하도 호출하는게 많아서...\n\n\n")
         logging.debug("common_subprocess:CommonSubprocess init")
         self.__process_args = process_args
         self.__is_run = False
         self.__subprocess: subprocess.Popen = None
-        self.start()
+        self.start() # init되면 자동으로 뜨네
 
     def __del__(self):
         self.stop()
@@ -44,7 +45,7 @@ class CommonSubprocess:
         logging.debug("common_subprocess:CommonSubprocess start")
         if not self.__is_run:
             logging.debug("common_subprocess:CommonSubprocess run process")
-            self.__subprocess = subprocess.Popen(self.__process_args)
+            self.__subprocess = subprocess.Popen(self.__process_args) # 옵션을 주면 이 시점에서 실행되나봄
             self.__is_run = True
 
     def stop(self):

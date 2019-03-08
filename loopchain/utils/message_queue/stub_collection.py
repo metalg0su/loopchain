@@ -35,6 +35,8 @@ class StubCollection(metaclass=SingletonMetaClass):
         self.icon_score_stubs: Dict[str, IconScoreInnerStub] = {}
 
     async def create_peer_stub(self):
+        print("\n\n\n피어 스텁 만들기!!!!!!!!")
+        # todo: 이것의 역할은?...
         from loopchain import configure as conf
         from loopchain.peer import PeerInnerStub
 
@@ -87,7 +89,7 @@ class StubCollection(metaclass=SingletonMetaClass):
         from loopchain import configure as conf
         from loopchain.scoreservice import IconScoreInnerStub
 
-        print("\n\n\n아이콘 스코어 스텁 만들었따!!!! - async라 늦게 켜지나.")
+        print("\n\n\n아이콘 스코어 스텁 만들었따!!!! - 얘는 채널도 만들기도 하고, 스코어가 만들기도 하네?.. .")
         queue_name = conf.ICON_SCORE_QUEUE_NAME_FORMAT.format(
             channel_name=channel_name, amqp_key=self.amqp_key
         )

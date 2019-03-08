@@ -119,7 +119,7 @@ class PeerManager:
         self.__peer_object_list = {}
 
         # peer group 은 전체 peer 가 등록된 ALL GROUP 과 개별 group_id 로 구분된 리스트가 존재한다.
-        self.__init_peer_group(conf.ALL_GROUP_ID)
+        self.__init_peer_group(conf.ALL_GROUP_ID) # 이걸로 인해 저기 아래로 내려간다.
         # lock object for if add new peer don't have order that must locking
         self.__add_peer_lock: threading.Lock = threading.Lock()
 

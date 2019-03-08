@@ -1010,6 +1010,7 @@ class ChannelInnerService(MessageQueueService[ChannelInnerTask]):
         asyncio.run_coroutine_threadsafe(_notify(), self.loop)
 
     def init_sub_services(self):
+        print("\\n\n\n 채널 이너 서비스의 이닛 서브 서비스")
         if self.loop != asyncio.get_event_loop():
             raise Exception("Must call this function in thread of self.loop")
         self._task.init_sub_service(self.loop)

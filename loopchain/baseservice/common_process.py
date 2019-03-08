@@ -36,7 +36,7 @@ class CommonProcess:
         return self.__run_process.is_alive()
 
     def start(self):
-        print("\n\n커먼프로세스 스타트!!")
+        print("\n\n커먼프로세스 스타트!! - 제일 처음은 레스트를 띄우기 위한 컨테이너에 의해 호출되더군. 또 뜨는지 확인 ")
         parent_conn, child_conn = multiprocessing.Pipe()
         event = multiprocessing.Event()
 

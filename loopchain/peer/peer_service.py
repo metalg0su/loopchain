@@ -184,9 +184,11 @@ class PeerService:
         self.__common_service.stop()
 
     def __get_channel_infos(self):
+        print("\n\n\n겟 채널 인포쓰으 -- \n\n\n")
         # 잘은 모르겠지만 rs에게 channel info를 물어봐서 가져오는 듯 하군
         # util.logger.spam(f"__get_channel_infos:node_type::{self.__node_type}")
         if self.is_support_node_function(conf.NodeFunction.Vote):
+            # todo: 아래 옵션은 앵간하면 False네. REP 라디오 스테이션은 대체 무엇을 의미하는 것인가?..
             if conf.ENABLE_REP_RADIO_STATION:
                 response = self.stub_to_radiostation.call_in_times(
                     method_name="GetChannelInfos",
@@ -205,6 +207,7 @@ class PeerService:
                 logging.info(f"Connect to channels({util.pretty_json(response.channel_infos)})")
                 channels = json.loads(response.channel_infos)
             else:
+                # 여기서 채널 매니지 테이터를 읽어오는군.
                 channels = util.load_json_data(conf.CHANNEL_MANAGE_DATA_PATH)
 
                 if conf.ENABLE_CHANNEL_AUTH:
@@ -281,14 +284,19 @@ class PeerService:
             KmsHelper().remove_agent_pin()
 
     def run_common_service(self):
+        print("\n\n\n 런 커먼 써어비쓰 시자아아악 - 누가 호출했는지 확인!!!\n\n")
         inner_service_port = conf.PORT_INNER_SERVICE or (self.__peer_port + conf.PORT_DIFF_INNER_SERVICE)
         self.__inner_target = conf.IP_LOCAL + ":" + str(inner_service_port)
 
-        print("\n\n\n 커먼 서비스 시자아아악!!!\n\n")
+        print("\n\n\n 커먼 써어비쓰  정의!!!\n\n")
         self.__common_service = CommonService(loopchain_pb2, inner_service_port)
         self.__common_service.start(str(self.__peer_port), self.__peer_id, self.__group_id)
 
+        # 이 시점에서 outer service가 기동되는군
+        print("\n\n\n피어써어비쓰 투 써버 (아우터 써어비쓰만 등록)")
         loopchain_pb2_grpc.add_PeerServiceServicer_to_server(self.__outer_service, self.__common_service.outer_server)
+        # 아.. 마치 래빗앰큐처럼 grpc도 데몬같은 게 있고, 거기에 스텁이나 스켈레톤 같은걸 등록시킨다음에, 데몬끼리 통신해주는건가?..
+        # 그리고 그 역할을 여기서는 커먼 서비스라고 묶은 것 같음. 'listen이 가능한 스켈을 지알피씨에 등록하는 과정' 까지인 느낌이 든다.
 
     def serve(self,
               port,
@@ -319,21 +327,26 @@ class PeerService:
         StubCollection().amqp_key = amqp_key
 
         peer_queue_name = conf.PEER_QUEUE_NAME_FORMAT.format(amqp_key=amqp_key)
+        print("\n\n\n피어 아우터 써어비쓰 - 선언 정도만 ")
         self.__outer_service = PeerOuterService()
+        print("\n\n\n피어 이너 써어비쓰 - 선언 정도만 ")
         self.__inner_service = PeerInnerService(
             amqp_target, peer_queue_name, conf.AMQP_USERNAME, conf.AMQP_PASSWORD, peer_service=self)
 
         # todo: rs 없이 돌아가는건 어떤 경로를 통해 그런건지 나중에 조사
         self.__channel_infos = self.__get_channel_infos()
         if not self.__channel_infos:
+            # 채널 정보가 없으면 쫒아내버리는군
             util.exit_and_msg("There is no peer_list, initial network is not allowed without RS!")
 
         # rest가 이 시점에서 시작된다.
-        print("\n\n\nreeeest 시작ㅇ!!!!!\n\n\n")
+        print("\n\n\nreeeest 호출 시작!!!!!========================================================================================!!!!!\n\n\n")
         self.__run_rest_services(port)
-        print("\n\n\nrestttt 코드 건넘!!!!\n\n\n")
+        print("\n\n\nrestttt 호출 끝!!!!!=======================================. 아마도 이제 Rest 프로세스도 로그를 남기기 시작해서 중첩될듯 !!!!\n\n\n")
+        print("\n\n\n\n\n")
+        print("\n\n\n피어 써어비쓰가 호출하는 커먼 써어비쓰 시작================================================!!!\n\n\n")
         self.run_common_service()
-        print("\n\n\n커먼서비스으으으ㅡ응 끝!!!!\n\n\n")
+        print("\n\n\n커먼서비스으으으ㅡ응 끝========================================================================!!!!\n\n\n")
 
         self.__close_kms_helper()
 
@@ -344,19 +357,24 @@ class PeerService:
 
         async def _serve():
             # 아래의 ready_tasks에서 채널 태스크를 띄우는 건가봄!
+            print("\n\n\n레디 테스크 시작!!!!!")
             await self.ready_tasks()
-            print("\n\n\n이너써어비스 - 커넥트 시작!")
+            print("\n\n\n~~~~~~이너써어비스 - 커넥트 시작! - 이건 rabbitMQ로 하는듯.") # 결국은 피어와 [채널, 채널tx리씨버, 스코어] 와는 래빗앰큐로 통신.
             await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True)
-            print("\n\n\n이너써어비스 - 커넥트 끝!!")
+            print("\n\n\n~~~~~~이너써어비스 - 커넥트 끝!!")
 
+            # 여기서부터는 채널을 띄우는 것 같아.
             if conf.CHANNEL_BUILTIN:
-                print("\n\n\n빌트인 설정을 따르는듯?")
+                print("\n\n\n써어브 채널 시작===========================. 채널 하나를 띄우기 떄문에 꽤 길어진다. 옵션은 빌트인인거가틈.")
                 await self.serve_channels()
 
+            print("\n\n\n써어브 채널 끝.?")
             if event_for_init is not None:
+                print("\n\n\n 이벤트 포 이닛이 넌이 아님")
                 event_for_init.set()
 
             logging.info(f'peer_service: init complete peer: {self.peer_id}')
+            print("\n\n\n끝: 어씽크의 경계선!!!이 과정은 한 번만 거치는 것 같음. ============================================================================\n\n\n")
 
         loop = self.__inner_service.loop
         # todo: 왜 여러개를 만드는거야 - 여러개가 아니라, 프로세스가 이미 이전에 여러개가 뜬 거 같음. 그래서 로그 보면 pid가 다른 것 같음.
@@ -394,12 +412,15 @@ class PeerService:
         loop.create_task(_close())
 
     async def serve_channels(self):
-        for i, channel_name in enumerate(self.__channel_infos.keys()):
+        """ 아.. 이 시점에서 새로운 프로세스를 또 띄우시는군요... channel 이라고 하는 """
+
+        for i, channel_name in enumerate(self.__channel_infos.keys()): # 채널 갯수만큼 주르륵 띄운다.
+            # 채널명은 channel_infos에서 가져오는거로군
             score_port = self.__peer_port + conf.PORT_DIFF_SCORE_CONTAINER + conf.PORT_DIFF_BETWEEN_SCORE_CONTAINER * i
 
             args = ['python3', '-m', 'loopchain', 'channel']
             args += ['-p', str(score_port)]
-            args += ['--channel', str(channel_name)]
+            args += ['--channel', str(channel_name)] # 이 채널 명으로 채널을 띄우눈군.
             args += command_arguments.get_raw_commands_by_filter(
                 command_arguments.Type.Develop,
                 command_arguments.Type.AMQPTarget,
@@ -408,19 +429,24 @@ class PeerService:
                 command_arguments.Type.RadioStationTarget
             )
 
-            service = CommonSubprocess(args)
+            print("\n\n\n 채널을 띄울 준비가 됨! \n\n\n ")
+            # todo: 얘는 대체 왜 여러개가 뜨는거야~~ 그리고는 이 이후에 아이콘 스코어 스텁이 뜨는 것 같은데..
+            service = CommonSubprocess(args) # 이 자체만으로도 실행하는 걸텐데.. 일단은 아래의 표준출력이 바로 찍히고, 채널이 또다른 프로세스에서 돌아가기 시작하는 것 같다.
+            print("\n\n\n 채널에서 커먼 써브프로세스 코드 건넘! \n\n\n ")
+            # service.set_proctitle(f"이거슨 채널{i} 띄우다가 뜬 커먼서브프로세스임다.") # 제일 처음에 켰을 떈 되다가, 왜 안되냐 ㅋ
 
             channel_stub = StubCollection().channel_stubs[channel_name]
-            await channel_stub.async_task().hello()
+            await channel_stub.async_task().hello() # 응답 오는지 확인하는 듯
 
             self.__channel_services[channel_name] = service
+            print("\n\n써어브 채널쓰 끝. \n\n\n")
 
     async def ready_tasks(self):
-        print("\n\n\n레디 태스크!!!!!")
         await StubCollection().create_peer_stub()  # for getting status info
 
+        # 채널이 여러개면 (멀티채널이면) 채널 갯수만큼 여기서 뜨는 것 같다.
         for channel_name, channel_info in self.__channel_infos.items():
-            print("\n\n\n채널네임, 인포", channel_name, channel_info)
+            print("\n\n\n채널네임: ", channel_name, )
 
             # 여러 스텁을 만듦으로서, 외부와 통신할 준비를 하는 것 같군.
             await StubCollection().create_channel_stub(channel_name)

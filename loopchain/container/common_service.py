@@ -34,7 +34,9 @@ class CommonService(CommonThread):
         self.__peer_id = None if ObjectManager().peer_service is None else ObjectManager().peer_service.peer_id
 
         # for peer_service, it refers to peer_inner_service / for rs_service, it refers to rs_admin_service
-        self.inner_server = grpc.server(futures.ThreadPoolExecutor(conf.MAX_WORKERS, "CommonInnerThread"))
+        # 각 피어는 grpc를 이용해서 서버처럼 작동할 수 있는 스켈레톤을 만드는 것 같다. grpc 좋아보이는데..?ㅋ
+        print("\n\n\ngrpc를 이용해서 이너, 아우터 서버(처럼 생긴걸) 세움")
+        self.inner_server = grpc.server(futures.ThreadPoolExecutor(conf.MAX_WORKERS, "CommonInnerThread")) # todo: 이너 서버도 grpc?? dma?;;;
         self.outer_server = grpc.server(futures.ThreadPoolExecutor(conf.MAX_WORKERS, "CommonOuterThread"))
 
         # members for private, It helps simplicity of code intelligence

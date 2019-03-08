@@ -96,6 +96,7 @@ class BlockManager:
 
         :return:
         """
+        print("블록 매니저의 이닛 에포크!")
         self.epoch = Epoch(self)
 
     def update_service_status(self, status):

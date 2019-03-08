@@ -42,6 +42,7 @@ from loopchain.utils.message_queue import StubCollection
 
 class ChannelService:
     def __init__(self, channel_name, amqp_target, amqp_key):
+        print("\n\n\n 채널 써어비쓰 이니셜라이즈 \n\n\n")
         self.__block_manager: BlockManager = None
         self.__score_container: CommonSubprocess = None
         self.__score_info: dict = None
@@ -124,11 +125,16 @@ class ChannelService:
         return self.__inner_service
 
     def serve(self):
+        print("\n\n\n 채널 써어비쓰 써브 - 시작")
+
         async def _serve():
+            print("\n\n\n스텁 콜렉쎤.피어스텁 생성 \n\n\n")
             await StubCollection().create_peer_stub()
+            print("\n\n\n스텁 콜렉쎤.피어스텁 끝 \n\n\n")
             results = await StubCollection().peer_stub.async_task().get_channel_info_detail(ChannelProperty().name)
 
-            await self.init(*results)
+            print("\n\n\n채널.init~~~~~!!!~~~~~~")
+            await self.init(*results) # todo: ?.. 재귀적으로 계속 채널을 시작하나..? - 아.. __init__이 아니잖아요ㅋ;
 
             self.__timer_service.start()
             self.__state_machine.complete_init_components()
@@ -186,6 +192,7 @@ class ChannelService:
             logging.info("Cleanup TimerService.")
 
     async def init(self, peer_port, peer_target, rest_target, radio_station_target, peer_id, group_id, node_type, score_package):
+        """ 이 메소드의 목적은 무엇인가. 채널 정보를 꾸리는 부분을 __init__에 두고, 접속하는 부분을 async로 뗴어낸 것인가?"""
         loggers.get_preset().peer_id = peer_id
         loggers.get_preset().update_logger()
 
@@ -198,13 +205,20 @@ class ChannelService:
         ChannelProperty().node_type = conf.NodeType(node_type)
         ChannelProperty().score_package = score_package
 
+        print("\n\n\n채널 써어비쓰의 피어 매니저 호출.\n\n\n")
         self.__peer_manager = PeerManager(ChannelProperty().name)
+        print("\n\n\n채널 써어비쓰의 피어 오쓰 호출.\n\n\n")
         await self.__init_peer_auth()
+        print("\n\n\n채널 써어비쓰의 브로드캐스트 스케쥴러 호출.\n\n\n")
         self.__init_broadcast_scheduler()
+        print("\n\n\n채널 써어비쓰의 블록 매니저 호출.\n\n\n")
         self.__init_block_manager()
+        print("\n\n\n채널 써어비쓰의 RS 스텁 호출.\n\n\n")
         self.__init_radio_station_stub()
 
+        print("\n\n\n채널 써어비쓰의 스코어 컨테이너 호출.\n\n\n")
         await self.__init_score_container()
+        print("\n\n\n 채널 이너 써비스의 커넧트!!! ")
         await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True)
         self.__inner_service.init_sub_services()
 
@@ -215,6 +229,7 @@ class ChannelService:
                 await self.__load_peers_from_file()
                 # subscribe to other peers
                 self.__subscribe_to_peer_list()
+            # todo: epoch라는 것을 시작하고 채널 서비스는 넘기는군 여기서부터 컨센서스로 넘어가는 건 아닐지
             self.block_manager.init_epoch()
         else:
             self.__init_node_subscriber()
@@ -264,6 +279,7 @@ class ChannelService:
             util.exit_and_msg("LevelDBError(" + str(e) + ")")
 
     def __init_broadcast_scheduler(self):
+        """얘는 어디로 가는 것인가..."""
         scheduler = BroadcastSchedulerFactory.new(channel=ChannelProperty().name,
                                                   self_target=ChannelProperty().peer_target)
         scheduler.start()
@@ -287,14 +303,26 @@ class ChannelService:
     async def __init_score_container(self):
         """create score container and save score_info and score_stub
         """
+        print("\n\n\n 채널 써비스의 이닛 스코어 컨테이너 ")
         for i in range(conf.SCORE_LOAD_RETRY_TIMES):
+            print("\n\n\n1")
             try:
+                print("\n\n\n2")
                 self.__score_info = await self.__run_score_container()
             except BaseException as e:
+                print("\n\n\n3")
                 util.logger.spam(f"channel_manager:load_score_container_each score_info load fail retry({i})")
+                print("\n\n\n4")
                 logging.error(e)
+                print("\n\n\n5")
+                logging.error(e)
+                print("\n\n\n6")
                 traceback.print_exc()
+                print("\n\n\n7")
+                logging.error(e)
+                print("\n\n\n8")
                 time.sleep(conf.SCORE_LOAD_RETRY_INTERVAL)  # This blocking main thread is intended.
+                print("\n\n\n9")
 
             else:
                 break
@@ -306,6 +334,7 @@ class ChannelService:
         )
 
     async def __run_score_container(self):
+        print("\n\n\n 아!!! 여기있었네. 스코어는 또 얘가 돌리는거구만!!!!\n\n\n")
         if conf.RUN_ICON_IN_LAUNCHER:
             process_args = ['python3', '-m', 'loopchain', 'score',
                             '--channel', ChannelProperty().name,
@@ -317,10 +346,13 @@ class ChannelService:
                 command_arguments.Type.ConfigurationFilePath,
                 command_arguments.Type.RadioStationTarget
             )
+            print("\n\n\n이 커먼서브프로세스는 스코어가 깨웠습니다!!!")
             self.__score_container = CommonSubprocess(process_args)
-
+        print("\n\n\n 아이콘 스코어 스텁 만들기")
         await StubCollection().create_icon_score_stub(ChannelProperty().name)
+        print("\n\n\n 아이콘 스코어 스텁에 접속")
         await StubCollection().icon_score_stubs[ChannelProperty().name].connect()
+        print("\n\n\n 아이콘 스코어 스텁 - 접속 잘 되었니")
         await StubCollection().icon_score_stubs[ChannelProperty().name].async_task().hello()
         return None
 

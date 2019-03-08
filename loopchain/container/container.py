@@ -110,12 +110,14 @@ class Container(CommonProcess, MonitorAdapter):
                 command_arguments.Type.ConfigurationFilePath,
                 command_arguments.Type.RadioStationTarget
             )
-            print("\n 실질적으로 rest launcher는 이 시점같은데...")
+            print("\n\n\n rest 옵션으로 런처를 띄운다!!!\n\n\n")
+            print("\n\n\n 이 커먼 써브프로세스는 REST를 위한 것!!!!!!\n\n\n")
             server = CommonSubprocess(args)
             api_port = self._port + conf.PORT_DIFF_REST_SERVICE_CONTAINER
             server.set_proctitle(f"{setproctitle.getproctitle()} 레스트 서버ㅋ({api_port})") # 여기서 설정한 문자열로 프로세스를 띄우는 것 같아.
         # todo: 여기는 언제 오게 되는 것인가?
         else:
+            print("\n\n\n rest-rs 옵션으로 런처를 띄운다!!!\n\n\n")
             args = ['python3', '-m', 'loopchain', 'rest-rs', '-p', str(self._port)]
             args += command_arguments.get_raw_commands_by_filter(
                 command_arguments.Type.Develop,
@@ -124,8 +126,8 @@ class Container(CommonProcess, MonitorAdapter):
 
             api_port = self._port + conf.PORT_DIFF_REST_SERVICE_CONTAINER
             server = CommonSubprocess(args)
-            server.set_proctitle(f"{setproctitle.getproctitle()} RestServerRS api_port({api_port})")
-        # 여길 지나면 이제 peer 서비스에서 rest 띄우는 부분은 종료되는 것 같다.
+            server.set_proctitle(f"{setproctitle.getproctitle()} 레스트서버 RㅋSㅋapi_port({api_port})") # 실행 후에 title을 설정하나..--?;;;
+        # 여길 지나면 이제 peer 서비스에서 rest 띄우는 부분은 끝나는 것 같다.
         logging.info(f'Container run complete port {self._port}')
 
         # complete init

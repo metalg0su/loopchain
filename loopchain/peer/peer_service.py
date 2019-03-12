@@ -296,7 +296,7 @@ class PeerService:
         print("\n\n\n피어써어비쓰 투 써버 (아우터 써어비쓰만 등록)")
         loopchain_pb2_grpc.add_PeerServiceServicer_to_server(self.__outer_service, self.__common_service.outer_server)
         # 아.. 마치 래빗앰큐처럼 grpc도 데몬같은 게 있고, 거기에 스텁이나 스켈레톤 같은걸 등록시킨다음에, 데몬끼리 통신해주는건가?..
-        # 그리고 그 역할을 여기서는 커먼 서비스라고 묶은 것 같음. 'listen이 가능한 스켈을 지알피씨에 등록하는 과정' 까지인 느낌이 든다.
+        # 그리고 그 역할을 여기서는 커먼 서비스라고 묶은 것 같음. 'listen이 가능한 스켈을 지알피씨에 등록하는 과정' 까지인 느낌이 든다. 잘 모르겠음 ㅡㅡ;;;;
 
     def serve(self,
               port,
@@ -323,6 +323,7 @@ class PeerService:
         self.__init_level_db()
         self.__init_key_by_channel()
 
+        # todo: 이 지점이 싱글턴 객체의 최초 사용 지점인가보다.. 최초의 amqp 관련 설정을 하는 모습같다.
         StubCollection().amqp_target = amqp_target
         StubCollection().amqp_key = amqp_key
 
@@ -343,7 +344,6 @@ class PeerService:
         print("\n\n\nreeeest 호출 시작!!!!!========================================================================================!!!!!\n\n\n")
         self.__run_rest_services(port)
         print("\n\n\nrestttt 호출 끝!!!!!=======================================. 아마도 이제 Rest 프로세스도 로그를 남기기 시작해서 중첩될듯 !!!!\n\n\n")
-        print("\n\n\n\n\n")
         print("\n\n\n피어 써어비쓰가 호출하는 커먼 써어비쓰 시작================================================!!!\n\n\n")
         self.run_common_service()
         print("\n\n\n커먼서비스으으으ㅡ응 끝========================================================================!!!!\n\n\n")
@@ -360,10 +360,10 @@ class PeerService:
             print("\n\n\n레디 테스크 시작!!!!!")
             await self.ready_tasks()
             print("\n\n\n~~~~~~이너써어비스 - 커넥트 시작! - 이건 rabbitMQ로 하는듯.") # 결국은 피어와 [채널, 채널tx리씨버, 스코어] 와는 래빗앰큐로 통신.
-            await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True)
+            await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True) # 들을 준비가 여기서 되는 것 같군.
             print("\n\n\n~~~~~~이너써어비스 - 커넥트 끝!!")
 
-            # 여기서부터는 채널을 띄우는 것 같아.
+            # 여기서부터는 채널을 띄우는 것 같아. 아얘 프로세스로.  이 지점은 수신점이 되는건가
             if conf.CHANNEL_BUILTIN:
                 print("\n\n\n써어브 채널 시작===========================. 채널 하나를 띄우기 떄문에 꽤 길어진다. 옵션은 빌트인인거가틈.")
                 await self.serve_channels()
@@ -432,24 +432,24 @@ class PeerService:
 
             print("\n\n\n 채널을 띄울 준비가 됨! \n\n\n ")
             # todo: 얘는 대체 왜 여러개가 뜨는거야~~ 그리고는 이 이후에 아이콘 스코어 스텁이 뜨는 것 같은데..
-            service = CommonSubprocess(args) # 이 자체만으로도 실행하는 걸텐데.. 일단은 아래의 표준출력이 바로 찍히고, 채널이 또다른 프로세스에서 돌아가기 시작하는 것 같다.
+            service = CommonSubprocess(args)
+            # service.set_proctitle(f"이거슨 채널{i} 띄우다가 뜬 커먼서브프로세스임다.") # 이 자체만으로도 실행하는 걸텐데.. 일단은 아래의 표준출력이 바로 찍히고, 채널이 또다른 프로세스에서 돌아가기 시작하는 것 같다.
             print("\n\n\n 채널에서 커먼 써브프로세스 코드 건넘! \n\n\n ")
-            # service.set_proctitle(f"이거슨 채널{i} 띄우다가 뜬 커먼서브프로세스임다.") # 제일 처음에 켰을 떈 되다가, 왜 안되냐 ㅋ
 
-            channel_stub = StubCollection().channel_stubs[channel_name]
-            await channel_stub.async_task().hello() # 응답 오는지 확인하는 듯
+            channel_stub = StubCollection().channel_stubs[channel_name] # ready_tasks에서 만들었던 stub들을 꺼내와서 각자 매핑.
+            await channel_stub.async_task().hello() # 응답 오는지 확인하는 듯 - 각 채널마다.
 
-            self.__channel_services[channel_name] = service
+            self.__channel_services[channel_name] = service # 각 피어마다 관리하는 채널이 dict식으로 되어있나봄. 그 프로세스를 매핑하네
             print("\n\n써어브 채널쓰 끝. \n\n\n")
 
     async def ready_tasks(self):
-        await StubCollection().create_peer_stub()  # for getting status info
+        await StubCollection().create_peer_stub()  # for getting status info. 얘는 내부에서  통신하기 위해 mq에 접속할 대리인을 만드는 것 같음.내부 통신 대리자
 
         # 채널이 여러개면 (멀티채널이면) 채널 갯수만큼 여기서 뜨는 것 같다.
         for channel_name, channel_info in self.__channel_infos.items():
             print("\n\n\n채널네임: ", channel_name, )
 
             # 여러 스텁을 만듦으로서, 외부와 통신할 준비를 하는 것 같군.
-            await StubCollection().create_channel_stub(channel_name)
-            await StubCollection().create_channel_tx_receiver_stub(channel_name)
-            await StubCollection().create_icon_score_stub(channel_name)
+            await StubCollection().create_channel_stub(channel_name) # 멀티채널용 채널 간 통신을 위한 대리자. 채널 명을 따서 큐를 만드는 듯 하다.
+            await StubCollection().create_channel_tx_receiver_stub(channel_name) # 채널 간의 tx를 주고 받기 위한 통로같음. todo TxCreator는 어디서 만들어지는거지?
+            await StubCollection().create_icon_score_stub(channel_name) # 근본적으로 create.. 이것들은 MQ의 큐를 선언하는 행위같음. 실제로 rabbitMQ의 큐가 만들어짐

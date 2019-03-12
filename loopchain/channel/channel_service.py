@@ -218,12 +218,13 @@ class ChannelService:
         print("\n\n\n채널 써어비쓰의 RS 스텁 호출.\n\n\n")
         self.__init_radio_station_stub()
 
-        print("\n\n\n채널 써어비쓰의 스코어 컨테이너 호출.\n\n\n")
+        print("\n\n\n채널 써어비쓰의 스코어 컨테이너 호출.\n\n\n") # 여기서 채널 프로세스가 score로 런처를 하나 더 띄운다. 흠..?;;;;;;
         await self.__init_score_container()
         print("\n\n\n 채널 이너 써비스의 커넧트!!! ")
         await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True)
         self.__inner_service.init_sub_services()
 
+        # 이게 뭐지..??
         if self.is_support_node_function(conf.NodeFunction.Vote):
             if conf.ENABLE_REP_RADIO_STATION:
                 self.connect_to_radio_station()
@@ -351,11 +352,12 @@ class ChannelService:
             )
             print("\n\n\n이 커먼서브프로세스는 스코어가 깨웠습니다!!!")
             self.__score_container = CommonSubprocess(process_args)
+            # self.__score_container.set_proctitle(f"런처 스코어로 또 돌림...") # async라 다른거랑 꼬여서 안나오는건가?
             # 돌려놓고 이제 자기는 다시 돌아가야지
         print("\n\n\n 아이콘 스코어 스텁 만들기")
-        await StubCollection().create_icon_score_stub(ChannelProperty().name)
+        await StubCollection().create_icon_score_stub(ChannelProperty().name) # 자동으로 접속 하는디..?;;;
         print("\n\n\n 아이콘 스코어 스텁에 접속")
-        await StubCollection().icon_score_stubs[ChannelProperty().name].connect()
+        await StubCollection().icon_score_stubs[ChannelProperty().name].connect() # 왜 또 하는거지? 음...;;;
         print("\n\n\n 아이콘 스코어 스텁 - 접속 잘 되었니")
         await StubCollection().icon_score_stubs[ChannelProperty().name].async_task().hello()
         return None

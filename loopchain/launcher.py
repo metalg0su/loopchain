@@ -41,7 +41,7 @@ def main(argv):
     args = parser.parse_args(argv)
     command_arguments.set_raw_commands(args)
 
-    # testnet, mainnet에 따라 바라봐야 할 rs target을 설정.
+    # testnet, mainnet에 따라 바라봐야 할 rs target을 설정. 만약에 아무 것도 없으면 어떡하지? local peer라든가...
     if args.radio_station_target == 'testnet':
         args.radio_station_target = conf.URL_CITIZEN_TESTNET
         args.configure_file_path = conf.CONF_PATH_LOOPCHAIN_TESTNET

@@ -65,6 +65,9 @@ class ChannelTxCreatorInnerTask:
 
     @message_queue_task
     async def create_icx_tx(self, kwargs: dict):
+        print("tx를 쏘면 여기가 호출되는 것 같다. - 채널이너써어비스.크리에이트_아이씨엑스_티엑스")
+        # 일단 tx가 생성되었으면, 다른 피어에게 알리기까지 여기를 거치나보다.
+        # todo: 얘는 그럼 누가 호출하는거지?
         result_code = None
         exception = None
         tx = None
@@ -72,9 +75,11 @@ class ChannelTxCreatorInnerTask:
         try:
             tx_version = self.__tx_versioner.get_version(kwargs)
 
-            ts = TransactionSerializer.new(tx_version, self.__tx_versioner)
+            # 해쉬값을 만드는 건가?..
+            ts = TransactionSerializer.new(tx_version, self.__tx_versioner) # tx 해쉬인가..?.. tx_version을 versioner 값으로 해쉬한 값을 시리얼라이즈?
             tx = ts.from_(kwargs)
 
+            # 요건 유효한지 검사하는건가..? 음?;
             tv = TransactionVerifier.new(tx_version, self.__tx_versioner)
             tv.verify(tx)
 
@@ -172,7 +177,7 @@ class ChannelTxCreatorInnerService(MessageQueueService[ChannelTxCreatorInnerTask
 
         service.serve(connection_attempts=conf.AMQP_CONNECTION_ATTEMPS,
                       retry_delay=conf.AMQP_RETRY_DELAY, exclusive=True)
-        logging.info("ChannelTxCreatorInnerService: started")
+        logging.info("ChannelTxCreatorInnerService: started") # 이게 그 다음
         service.serve_all()
 
         service.cleanup()
@@ -258,7 +263,7 @@ class ChannelTxReceiverInnerService(MessageQueueService[ChannelTxReceiverInnerTa
 
         service.serve(connection_attempts=conf.AMQP_CONNECTION_ATTEMPS,
                       retry_delay=conf.AMQP_RETRY_DELAY, exclusive=True)
-        logging.info("ChannelTxReceiverInnerService: started")
+        logging.info("ChannelTxReceiverInnerService: started") # 왜 채널 스테이트 머신이 또 만들어지는거지?...
         service.serve_all()
 
         service.loop.close()

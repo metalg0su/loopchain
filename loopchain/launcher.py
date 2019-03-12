@@ -68,6 +68,8 @@ def main(argv):
     async.thread_monkey_patch()
     async.concurrent_future_monkey_patch()
 
+    logging.info("이 런처를 실행한 프로세스의 pid를 알기 위함!!!") # 안뜨네 ㅋ;
+
     # peer의 종류에 따라 실행. 우선 peer로 실행시킨 상황을 가정
     if args.service_type == "peer":
         start_as_peer(args, conf.NodeType.CommunityNode)
@@ -144,7 +146,7 @@ def start_as_rest_server(args):
     # 이건 뭐지? 없으면 띄우고, 있으면 안띄우는건가.
     if not find_procs_by_params(api_port):
         # 준비가 되었으니, rpcserver를 띄우러 가나봄. 따라간다.
-        start_process(conf=rpcserver_conf)
+        start_process(conf=rpcserver_conf) # 라이브러리로 가는듯. icon_rpcserver_cli -> _app으로
         logging.info("start_command done!, IconRpcServerCli")
 
 

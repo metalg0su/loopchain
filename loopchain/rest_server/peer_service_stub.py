@@ -23,6 +23,11 @@ from loopchain.protos import loopchain_pb2, loopchain_pb2_grpc
 
 
 class PeerServiceStub(metaclass=SingletonMetaClass):
+    """ 얘의 목적은 무엇인가 최초 호출 지점도 모르겠네"""
+    print("!@#!$@!@$@!#@!피어써비스 스텁 - 루프체인/레스트서버/피어서비스스텁.파이 ")
+    # 얘가 다른 피어와 통신 시 Stub을 담당하는 것 같고, PeerServiceServicer가 skel을 담당하는 것 같군.
+    # 근데 왜이리 중복된게 많아..?
+
     REST_GRPC_TIMEOUT = conf.GRPC_TIMEOUT + conf.REST_ADDITIONAL_TIMEOUT
     REST_SCORE_QUERY_TIMEOUT = conf.SCORE_QUERY_TIMEOUT + conf.REST_ADDITIONAL_TIMEOUT
 

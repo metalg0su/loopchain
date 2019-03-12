@@ -353,7 +353,7 @@ class PeerService:
         stopwatch_duration = timeit.default_timer() - stopwatch_start
         logging.info(f"Start Peer Service at port: {port} start duration({stopwatch_duration})")
 
-        print("\n\n\n어싱크의 경계선!!!!!======================================================= ")
+        print("\n\n\n피어 써비스 어싱크의 경계선!!!!!======================================================= ")
 
         async def _serve():
             # 아래의 ready_tasks에서 채널 태스크를 띄우는 건가봄!
@@ -374,7 +374,7 @@ class PeerService:
                 event_for_init.set()
 
             logging.info(f'peer_service: init complete peer: {self.peer_id}')
-            print("\n\n\n끝: 어씽크의 경계선!!! 탈출 성공!!!!!!!! ============================================================================\n\n\n")
+            print("\n\n\n끝: 피어 써비스 어씽크의 경계선!!! 탈출 성공!!!!!!!! ============================================================================\n\n\n")
             # nㅜㅜ 탈출 성공
 
         loop = self.__inner_service.loop

@@ -6,6 +6,7 @@ class TransactionVersioner:
         self.hash_generator_versions = dict(default_hash_generator_versions)
 
     def get_version(self, tx_data: dict):
+        """ 기본값은 v2, 버전이 명시되어 있으면 반환하는건듯 """
         if 'signature' not in tx_data:
             return genesis.version
 

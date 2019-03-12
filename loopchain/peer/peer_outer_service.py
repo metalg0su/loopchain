@@ -32,7 +32,7 @@ class PeerOuterService(loopchain_pb2_grpc.PeerServiceServicer):
     def __init__(self):
         self.__handler_map = {
             message_code.Request.status: self.__handler_status,
-            message_code.Request.get_tx_result: self.__handler_get_tx_result,
+            message_code.Request.get_tx_result: self.__handler_get_tx_result, # ixc_sendTransaction!! 이건가!
             message_code.Request.get_balance: self.__handler_get_balance,
             message_code.Request.get_tx_by_address: self.__handler_get_tx_by_address,
             message_code.Request.get_total_supply: self.__handler_get_total_supply,

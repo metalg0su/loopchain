@@ -25,8 +25,10 @@ from loopchain.statemachine import statemachine
 from loopchain.utils import loggers
 
 
+# ChannelStateMachine은 StateMachine을 받아오는 것 같군.
 @statemachine.StateMachine("Channel State Machine")
 class ChannelStateMachine(object):
+    print("채널 스테이트 머신 첫줄.")
     states = ['InitComponents',
               State(name='Consensus', ignore_invalid_triggers=True,
                     on_enter='_consensus_on_enter'),
@@ -47,20 +49,27 @@ class ChannelStateMachine(object):
               'GracefulShutdown']
     init_state = 'InitComponents'
     state = init_state
+    print("채널 스테이트 머신 글로벌 끝")
 
     def __init__(self, channel_service):
+        print("채널 스테이트 머신 이닛")
         self.__channel_service = channel_service
 
+        # (trigger, from, to [, condition]) 식
         self.machine.add_transition('complete_subscribe', 'SubscribeNetwork', 'BlockGenerate', conditions=['_is_leader'])
+        print("채널 스테이트 머신 애드 트랜지션: 조건1")
         self.machine.add_transition('complete_subscribe', 'SubscribeNetwork', 'Watch', conditions=['_has_no_vote_function'])
+        print("채널 스테이트 머신 애드 트랜지션: 조건2")
         self.machine.add_transition('complete_subscribe', 'SubscribeNetwork', 'Vote')
+        print("채널 스테이트 머신 애드 트랜지션: 조건3")
 
+    # 음... 이 아래에 있는 것들은 info_dict에 들어가는 것 같긴 한데.. 어떨 때 변경되는거지
     @statemachine.transition(source='InitComponents', dest='Consensus')
     def complete_init_components(self):
         pass
 
     @statemachine.transition(source='Consensus', dest='BlockHeightSync')
-    def block_height_sync(self):
+    def block_height_sync(self): # 자동이네
         pass
 
     @statemachine.transition(source='BlockHeightSync',

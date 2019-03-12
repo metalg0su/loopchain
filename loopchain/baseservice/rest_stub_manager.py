@@ -26,6 +26,7 @@ from loopchain import configure as conf
 
 
 class RestStubManager:
+    """ 레스트 스텁 매니저인데 뭔가 tx 생성은 따로 관리하나보네..? """
     def __init__(self, target, channel=None, for_rs_target=True):
         util.logger.spam(f"RestStubManager:init target({target})")
         if channel is None:

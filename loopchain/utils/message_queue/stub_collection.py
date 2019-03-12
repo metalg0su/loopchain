@@ -35,6 +35,7 @@ class StubCollection(metaclass=SingletonMetaClass):
         self.icon_score_stubs: Dict[str, IconScoreInnerStub] = {}
 
     async def create_peer_stub(self):
+        # 싱글톤으로 사용하기 위해서 이걸 이용해 이너스텁을 만든 거였구나.. 언제든 조회가 되겠어....
         print("\n\n\n피어 스텁 만들기!!!!!!!!")
         # todo: 이것의 역할은?...
         from loopchain import configure as conf
@@ -43,6 +44,7 @@ class StubCollection(metaclass=SingletonMetaClass):
         queue_name = conf.PEER_QUEUE_NAME_FORMAT.format(amqp_key=self.amqp_key)
         self.peer_stub = PeerInnerStub(self.amqp_target, queue_name, conf.AMQP_USERNAME, conf.AMQP_PASSWORD) # todo : 이 부분이 이해가 안감...
         await self.peer_stub.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY)
+        # todo: InnerService에서 들을 준비를 하고, 이제 보낼 준비를 하는 것 같은데.아무런 정보도 안받고 채널은 peerInnerStub을 만드나?
         return self.peer_stub
 
     async def create_channel_stub(self, channel_name):
@@ -66,9 +68,10 @@ class StubCollection(metaclass=SingletonMetaClass):
 
         queue_name = conf.CHANNEL_TX_RECEIVER_QUEUE_NAME_FORMAT.format(
             channel_name=channel_name, amqp_key=self.amqp_key)
+        # 채널마다 각기 다른 스텁을 만들어서 혼선이 없도록 했군..
         stub = ChannelTxReceiverInnerStub(self.amqp_target, queue_name, conf.AMQP_USERNAME, conf.AMQP_PASSWORD)
         await stub.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY)
-        self.channel_tx_receiver_stubs[channel_name] = stub
+        self.channel_tx_receiver_stubs[channel_name] = stub # 다른 메서드도 그렇지만, 만들었으면 멤버 객체에 집어넣어서 언제든 싱글턴의 역할을 수행할 수 있도록 한다.
 
         print("\n\n\n채널 티엑쓰 리씨버 만들었다. -0 왜 여러개가 뜨지? ")
         logging.debug(f"ChannelTxReceiverTasks : {channel_name}, Queue : {queue_name}")

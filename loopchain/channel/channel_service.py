@@ -138,7 +138,8 @@ class ChannelService:
             await self.init(*results) # todo: ?.. 재귀적으로 계속 채널을 시작하나..? - 아.. __init__이 아니잖아요ㅋ;
 
             self.__timer_service.start()
-            self.__state_machine.complete_init_components()
+            # 이 시점에서 init_components가 호출되네. 이게 호출되면 모든 준비가 끝났다고 말하는 것 같다.
+            self.__state_machine.complete_init_components() # 근데 이게 호출되면 어디로 가는거야.. 컨센서스 상태로 변하긴 하는데.. 흠 흠
             logging.info(f'channel_service: init complete channel: {ChannelProperty().name}, '
                          f'state({self.__state_machine.state})')
 

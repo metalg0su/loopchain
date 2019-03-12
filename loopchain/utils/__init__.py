@@ -224,9 +224,11 @@ def request_server_wait_response(stub_method, message, time_out_seconds=None):
 
 
 def normalize_request_url(url_input, version, channel=None):
+    # 프로토콜까지 입력했으면 떼어버린다..
     if 'http://' in url_input:
         url_input = url_input.split("http://")[1]
 
+    # 아무것도 입력 안한 기본값 처리를 여기서 하는군..;;
     if not url_input:  # ex) '' => http://localhost:9000/api/v3
         url = generate_url_from_params(version=version, channel=channel)
     elif 'https://' in url_input and url_input.count(':') == 1:  # ex) https://testwallet.icon.foundation
@@ -241,6 +243,7 @@ def normalize_request_url(url_input, version, channel=None):
                                        version=version,
                                        use_https=True,
                                        channel=channel)
+    # 포트만 입력한 경우
     elif url_input.isdigit():  # ex) 9000
         url = generate_url_from_params(port=url_input, version=version, channel=channel)
     elif ':' in url_input and url_input.split(':')[1].isdigit():  # ex) 127.0.0.1:9000, {peer_name}:9000

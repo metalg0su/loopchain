@@ -86,6 +86,7 @@ class ServerComponents(metaclass=SingletonMetaClass):
         return self.__ssl_context
 
     def set_resource(self):
+        """ 얘는 특정 주소로 들어오면 디스패치? 해주는 애인가봄"""
         self.__app.add_route(json_rpc.NodeDispatcher.dispatch,
                              '/api/node/', methods=['POST'])
         if conf.DISABLE_V1_API:
@@ -107,6 +108,7 @@ class ServerComponents(metaclass=SingletonMetaClass):
                                       PeerServiceStub.REST_SCORE_QUERY_TIMEOUT)
 
     def create_transaction(self, data, channel):
+        # icx_sendTransaction은 여기와도 관련이 있는 것처럼 보인다.
         # logging.debug("Grpc Create Tx Data : " + data)
         return PeerServiceStub().call("CreateTx",
                                       loopchain_pb2.CreateTxRequest(data=data, channel=channel),

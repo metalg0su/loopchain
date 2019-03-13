@@ -44,6 +44,7 @@ class ChannelTxCreatorInnerTask:
         self.__channel_name = channel_name
         self.__tx_versioner = tx_versioner
 
+        # 이렇게 새로 안만들면 not implemented 에러가 뜨나봄. 분명하게 객체화할 필요가 있는 것들은 이렇게 만드는 것 같아.  -> 아니, 아얘 병렬 프로세스화 할 목적인듯
         scheduler = BroadcastSchedulerFactory.new(channel=channel_name,
                                                   self_target=peer_target,
                                                   is_multiprocessing=True)
@@ -51,10 +52,12 @@ class ChannelTxCreatorInnerTask:
 
         self.__broadcast_scheduler = scheduler
 
+        # 일단
         scheduler.schedule_job(BroadcastCommand.SUBSCRIBE, peer_target,
                                block=True, block_timeout=conf.TIMEOUT_FOR_FUTURE)
 
     def __pre_validate(self, tx: Transaction):
+        """ 얘의 목적은 뭐지 """
         if not util.is_in_time_boundary(tx.timestamp, conf.ALLOW_TIMESTAMP_BOUNDARY_SECOND):
             raise TransactionInvalidOutOfTimeBound(tx.hash.hex(), tx.timestamp, util.get_now_time_stamp())
 
@@ -67,7 +70,8 @@ class ChannelTxCreatorInnerTask:
     async def create_icx_tx(self, kwargs: dict):
         print("tx를 쏘면 여기가 호출되는 것 같다. - 채널이너써어비스.크리에이트_아이씨엑스_티엑스")
         # 일단 tx가 생성되었으면, 다른 피어에게 알리기까지 여기를 거치나보다.
-        # todo: 얘는 그럼 누가 호출하는거지?
+        # 실질적으로 icx_tx를 만드는 곳 같음. 이미 검증은 되었고.
+        # todo: 얘는 그럼 누가 호출하는거지? - rest는 channelTxCreator를 만들고, iconrpcserver의 dispatcher 쪽에 산재되어있는 메소드가 채널tx크리에이터를 불러와서 이 메서드를 호출함.
         result_code = None
         exception = None
         tx = None
@@ -75,18 +79,25 @@ class ChannelTxCreatorInnerTask:
         try:
             tx_version = self.__tx_versioner.get_version(kwargs)
 
-            # 해쉬값을 만드는 건가?..
+            # 해쉬값을 만드는 건가?.. -> 트랜잭션 시리얼라이즈드 인가?.. 다른 피어들에게 보내줄 실제 tx 직렬화값 같은데.
+            print(f"ts create!!\n\n")
             ts = TransactionSerializer.new(tx_version, self.__tx_versioner) # tx 해쉬인가..?.. tx_version을 versioner 값으로 해쉬한 값을 시리얼라이즈?
             tx = ts.from_(kwargs)
 
-            # 요건 유효한지 검사하는건가..? 음?;
+            # 요건 유효한지 검사하는건가..? 음?; -> 만든 다음에 검증하나봄
+            print(f"tx verify!\n\n")
             tv = TransactionVerifier.new(tx_version, self.__tx_versioner)
             tv.verify(tx)
 
-            self.__pre_validate(tx)
+            print(f"tx __prevalidate!!!\n\n")
+            self.__pre_validate(tx) # todo: ??? score에서 이미 validate_transaction 후 결과 받아서 여기 온 거아니냐
 
             logging.debug(f"create icx input : {kwargs}")
 
+            # todo...그리고는 만든 내용을 브로드캐스트 하나 봅니다. -> 다른 피어로 날리는 부분으로 어떻게 이어지는거지..? 연결고리가 또 없는 것 같은데..
+            # block은 자동적으로 False네..? 으아아악ㄷㅈㅂㄷㅈㅂ
+            print(f"broadcast_scheduler.schedule_job")
+            print(f"self.__tx_versioner: {self.__tx_versioner}")
             self.__broadcast_scheduler.schedule_job(BroadcastCommand.CREATE_TX, (tx, self.__tx_versioner))
             return message_code.Response.success, tx.hash.hex()
 
@@ -112,6 +123,7 @@ class ChannelTxCreatorInnerTask:
 
 class ChannelTxCreatorInnerService(MessageQueueService[ChannelTxCreatorInnerTask]):
     TaskType = ChannelTxCreatorInnerTask
+
 
     def __init__(self, broadcast_queue: mp.Queue, amqp_target, route_key, username=None, password=None, **task_kwargs):
         super().__init__(amqp_target, route_key, username, password, **task_kwargs)
@@ -279,12 +291,13 @@ class ChannelTxReceiverInnerStub(MessageQueueStub[ChannelTxReceiverInnerTask]):
 
 
 class _ChannelTxCreatorProcess(ModuleProcess):
+    """ 채널 서브 프로세스에서 얘가 만들어지고.. """
     def __init__(self, tx_versioner: TransactionVersioner, broadcast_scheduler: BroadcastScheduler,
                  crash_callback_in_join_thread):
-        super().__init__()
+        super().__init__() # 모듈 프로세스 이닛
 
-        self.__broadcast_queue = self.Queue()
-        self.__broadcast_queue.cancel_join_thread()
+        self.__broadcast_queue = self.Queue() # 모듈 프로세스의 큐 -> 멀티프로세싱 모듈의 큐 ㅋ
+        self.__broadcast_queue.cancel_join_thread() # 큐가 join될 때, 큐 내용이 증발되는 것과 상관 없이 그냥 끝내는 상태로 만들겠따는 것 같음. 프로세스 종료 시, 기다리지 말고 끝내게 하라! 라는 것 같아.
 
         args = (ChannelProperty().name,
                 StubCollection().amqp_target,
@@ -292,11 +305,13 @@ class _ChannelTxCreatorProcess(ModuleProcess):
                 ChannelProperty().peer_target,
                 tx_versioner,
                 self.__broadcast_queue)
+        # 프로세스 시작을 의미하는 것 같음.
         super().start(target=ChannelTxCreatorInnerService.main,
                       args=args,
                       crash_callback_in_join_thread=crash_callback_in_join_thread)
 
         self.__broadcast_scheduler = broadcast_scheduler
+        print("이 지점이 아마 브로드캐스트 스케쥴러의 최초 명령 등록 시점같다. ") # 이게 먼저냐, 채널이 이닛하는게 먼저냐. 아마 이게 먼저겠지만..
         commands = (BroadcastCommand.SUBSCRIBE, BroadcastCommand.UNSUBSCRIBE)
         broadcast_scheduler.add_schedule_listener(self.__broadcast_callback, commands=commands)
 
@@ -383,6 +398,7 @@ class ChannelInnerTask:
         def crash_callback_in_join_thread(process: ModuleProcess):
             asyncio.run_coroutine_threadsafe(self.__handle_crash_sub_services(process), loop)
 
+        print("- 이닛 서브 서비스 중: 채널 서비스의 브로드캐스트 스케쥴러를 갖고와서, 똑같은 브로드캐스트 스케쥴러를 바라보는 프로세스를 뽑아낸다.")
         broadcast_scheduler = self._channel_service.broadcast_scheduler
         tx_creator_process = _ChannelTxCreatorProcess(tx_versioner,
                                                       broadcast_scheduler,
@@ -537,6 +553,7 @@ class ChannelInnerTask:
 
     @message_queue_task
     def create_tx(self, data):
+        """ 얘는 또 뭐꼬 """
         tx = Transaction()
         score_id = ""
         score_version = ""
@@ -1001,7 +1018,7 @@ class ChannelInnerService(MessageQueueService[ChannelInnerTask]):
 
     def __init__(self, amqp_target, route_key, username=None, password=None, **task_kwargs):
         super().__init__(amqp_target, route_key, username, password, **task_kwargs)
-        self._task._citizen_condition_new_block = Condition(loop=self.loop)
+        self._task._citizen_condition_new_block = Condition(loop=self.loop) # 이게 뭔가..?!
 
     def _callback_connection_lost_callback(self, connection: RobustConnection):
         util.exit_and_msg("MQ Connection lost.")

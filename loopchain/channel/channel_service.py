@@ -213,14 +213,14 @@ class ChannelService:
         print("\n\n\n채널 써어비쓰의 피어 오쓰 호출.\n\n\n")
         await self.__init_peer_auth()
         print("\n\n\n채널 써어비쓰의 브로드캐스트 스케쥴러 호출.\n\n\n")
-        self.__init_broadcast_scheduler()
+        self.__init_broadcast_scheduler() # 여기서 제일 처음으로 채널이 브로드캐스트 스케쥴러를 만나는군.
         print("\n\n\n채널 써어비쓰의 블록 매니저 호출.\n\n\n")
         self.__init_block_manager()
         print("\n\n\n채널 써어비쓰의 RS 스텁 호출.\n\n\n")
         self.__init_radio_station_stub()
 
         print("\n\n\n채널 써어비쓰의 스코어 컨테이너 호출.\n\n\n") # 여기서 채널 프로세스가 score로 런처를 하나 더 띄운다. 흠..?;;;;;;
-        await self.__init_score_container()
+        await self.__init_score_container() # 스코어 시작
         print("\n\n\n 채널 이너 써비스의 커넧트!!! ")
         await self.__inner_service.connect(conf.AMQP_CONNECTION_ATTEMPS, conf.AMQP_RETRY_DELAY, exclusive=True)
         self.__inner_service.init_sub_services()
@@ -287,13 +287,15 @@ class ChannelService:
             util.exit_and_msg("LevelDBError(" + str(e) + ")")
 
     def __init_broadcast_scheduler(self):
-        """얘는 어디로 가는 것인가..."""
+        """얘는 어디로 가는 것인가... - 이제 확인 중."""
+        print(f"채널이 브로드캐스트 스케쥴러를 초기화 함!! __init_boradcast_scheduler") # 스케쥴러 자체를 새 프로세스로 띄워서, 채널이 그걸 갖게 되는건가..
         scheduler = BroadcastSchedulerFactory.new(channel=ChannelProperty().name,
                                                   self_target=ChannelProperty().peer_target)
         scheduler.start()
 
         self.__broadcast_scheduler = scheduler
 
+        # 그렇게 새로 뜬 프로세스에게, 현재 채널을 바라보라. 라고 하는거고.. 근데 실제로는 아무것도 등록이 안되어있잖아?..
         scheduler.schedule_job(BroadcastCommand.SUBSCRIBE, ChannelProperty().peer_target,
                                block=True, block_timeout=conf.TIMEOUT_FOR_FUTURE)
 

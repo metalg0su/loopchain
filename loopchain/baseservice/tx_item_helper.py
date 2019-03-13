@@ -39,7 +39,7 @@ class TxItem:
 
     @classmethod
     def create_tx_item(cls, tx_param: tuple, channel: str):
-        tx, tx_versioner = tx_param
+        tx, tx_versioner = tx_param # 여기서 튜플 해체하네
         tx_serializer = cls.get_serializer(tx, tx_versioner)
         tx_item = TxItem(
             json.dumps(tx_serializer.to_raw_data(tx)),

@@ -73,6 +73,7 @@ class GRPCHelper(metaclass=SingletonMetaClass):
         connector: GRPCConnector = self.__connectors[ssl_auth_type]
         channel = connector.create_client_channel(self.__keys, host, ssl_auth_type)
 
+        print("브로드캐스트 만드는데 얘는 왜 호출되는거냐")
         logging.info(f"Client Channel : {host}, secure level : {str(ssl_auth_type)}")
 
         return channel

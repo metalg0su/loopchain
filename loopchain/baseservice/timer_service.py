@@ -85,6 +85,7 @@ class Timer:
 
 class TimerService(CommonThread):
     """timer service"""
+    # 이게 .. 뭐야?; 뭔가 브로드캐스트 관련 제어장치같은데... 어던 용도로 활용하고 있는 건가..? 설명이 없엌ㅋㅋㅋ
 
     TIMER_KEY_GET_LAST_BLOCK_KEEP_CITIZEN_SUBSCRIPTION = "TIMER_KEY_GET_LAST_BLOCK_KEEP_CITIZEN_SUBSCRIPTION"
     TIMER_KEY_BLOCK_HEIGHT_SYNC = "TIMER_KEY_BLOCK_HEIGHT_SYNC"

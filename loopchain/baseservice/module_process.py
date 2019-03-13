@@ -30,6 +30,7 @@ class ModuleProcessProperties:
 
 
 class ModuleProcess:
+    """ 멀티프로세싱을 입맛에 맞게 재구성 한 느낌이 나는데. """
     def __init__(self):
         self.__context: mp.context.SpawnContext = mp.get_context('spawn')
 

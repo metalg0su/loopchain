@@ -188,6 +188,7 @@ class BlockManager:
     def broadcast_send_unconfirmed_block(self, block_: Block):
         """생성된 unconfirmed block 을 피어들에게 broadcast 하여 검증을 요청한다.
         """
+
         if self.__channel_service.state_machine.state == "BlockGenerate":
             logging.debug(f"BroadCast AnnounceUnconfirmedBlock "
                           f"height({block_.header.height}) block({block_.header.hash}) peers: "
@@ -738,6 +739,7 @@ class BlockManager:
         self.__channel_service.broadcast_scheduler.schedule_broadcast("ComplainLeader", request)
 
     def vote_unconfirmed_block(self, block_hash, is_validated):
+        """ 얘가 브로드캐스트 스케쥴러에게 VoteUnconfirmedBlock을 때리는 유일한 녀석 같다. """
         logging.debug(f"block_manager:vote_unconfirmed_block ({self.channel_name}/{is_validated})")
 
         if is_validated:

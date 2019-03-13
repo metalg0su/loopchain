@@ -43,6 +43,7 @@ class PeerThreadStatus(Enum):
 
 class _Broadcaster:
     """broadcast class for each channel"""
+    # 얘가 실질적으로 "보내는" 역할을 수행하는 애구나. 스케쥴러는 얘에게 던져놓기만 하는 것 같아...
 
     THREAD_INFO_KEY = "thread_info"
     THREAD_VARIABLE_STUB_TO_SELF_PEER = "stub_to_self_peer"
@@ -81,7 +82,7 @@ class _Broadcaster:
 
         self.stored_tx = queue.Queue()
 
-        self.__timer_service = TimerService()
+        self.__timer_service = TimerService() # 와 이게 뭔지 설명이 안되어있어서 모호한데, 초기 코드때부터 있었네...
 
     @property
     def is_running(self):
@@ -235,14 +236,16 @@ class _Broadcaster:
         tx_list_size = 0
         tx_list_count = 0
         remains = False
+        # 이 지점에서 큐에 쌓인 tx가 있으면 브로드캐스트 스케쥴러가 전송하려는 것 같이 보인다.
         while not self.stored_tx.empty():
             stored_tx_item = self.stored_tx.get()
             tx_list_size += len(stored_tx_item)
             tx_list_count += 1
+            # Tx 갯수나 용량을 기준으로 모아두었다가 보내버린다..
             if tx_list_size >= conf.MAX_TX_SIZE_IN_BLOCK or tx_list_count >= conf.MAX_TX_COUNT_IN_ADDTX_LIST:
                 self.stored_tx.put(stored_tx_item)
                 remains = True
-                break
+                break # 음.. 뭐지
             tx_list.append(stored_tx_item.get_tx_message())
         message = loopchain_pb2.TxSendList(
             channel=self.__channel,
@@ -254,7 +257,7 @@ class _Broadcaster:
     def __send_tx_by_timer(self, **kwargs):
         # util.logger.spam(f"broadcast_scheduler:__send_tx_by_timer")
         if self.__thread_variables[self.THREAD_VARIABLE_PEER_STATUS] == PeerThreadStatus.leader_complained:
-            logging.warning("Leader is complained your tx just stored in queue by temporally: "
+            logging.warning("Leader is complained your tx just stored in queue by temporally: " # 무슨..말이지?
                             + str(self.stored_tx.qsize()))
         else:
             # Send single tx for test
@@ -268,12 +271,15 @@ class _Broadcaster:
                 self.__send_tx_in_timer()
 
     def __send_tx_in_timer(self, tx_item=None):
+        """ in_timer와 by_timer...-_-?... """
         # util.logger.spam(f"broadcast_scheduler:__send_tx_in_timer")
         duration = 0
-        if tx_item:
-            self.stored_tx.put(tx_item)
+        # create_tx_handler를 거쳐 오면 tx_item이 항상 있는 것 같으네. stored_tx로 처리되는듯.
+        if tx_item: # 없을 수도 있는건가..?
+            self.stored_tx.put(tx_item) # 생성된 tx(객체)를 큐에 밀어 넣고 ..응? 알아서 돌아가면서 처리하는 애가 따로 있나?;
             duration = conf.SEND_TX_LIST_DURATION
 
+        # 이게 무엇인가?...
         if TimerService.TIMER_KEY_ADD_TX not in self.__timer_service.timer_list:
             self.__timer_service.add_timer(
                 TimerService.TIMER_KEY_ADD_TX,
@@ -288,6 +294,8 @@ class _Broadcaster:
             pass
 
     def __handler_create_tx(self, create_tx_param):
+        """ schedule_job 커맨드에 CREATE_TX하면 여기로 오는건가..? """
+        # createTx 명령이 브로드캐스트 스케쥴러에게 들어오면, 여기로 매핑되는 듯 하다. (perform 어쩌구로 인해)
         # logging.debug(f"Broadcast create_tx....")
         try:
             tx_item = TxItem.create_tx_item(create_tx_param, self.__channel)
@@ -297,6 +305,7 @@ class _Broadcaster:
             logging.warning(f"tx dumps fail ({e})")
             return
 
+        # 보내지는 Tx는 객체화되어 다음으로
         self.__send_tx_in_timer(tx_item)
 
     def __handler_connect_to_leader(self, connect_to_leader_param):
@@ -354,17 +363,27 @@ class BroadcastScheduler(metaclass=abc.ABCMeta):
         raise NotImplementedError("_put_command function is interface method")
 
     def add_schedule_listener(self, callback, commands: tuple):
+        """ """
+        print(f"*----add_schedule_listener called")
+        print(f"self.__schedule_listners: {self.__schedule_listeners}")
+        print(f"  callback_input: {callback}")
+        print(f"  commands_input: {commands}")
         if not commands:
             raise ValueError("commands parameter is required")
 
+        # 제일 처음에 섭스, 언섭스가 커맨드쓰로 들어오겠음.
         for cmd in commands:
-            callbacks = self.__schedule_listeners.get(cmd)
-            if callbacks is None:
-                callbacks = []
-                self.__schedule_listeners[cmd] = callbacks
-            elif callback in callbacks:
+            callbacks = self.__schedule_listeners.get(cmd) # 각 커맨드마다 스케쥴 리스너: dict 에 []로 키를 호출하면, 없으면 에러가 난다고. get하면 None이 반환되고.
+            print(f"cmd: {cmd}, corr_callbacks: {callbacks}")
+            if callbacks is None: # 키 값이 없으면...
+                callbacks = [] # ??...
+                self.__schedule_listeners[cmd] = callbacks # 없으면 걍 아무것도 없이 걍 매핑? subscribe -> []?
+            elif callback in callbacks: # 입력받은 콜백값이 커맨드에 대한 값에 이미 매핑되어 있을 경우
                 raise ValueError("callback is already in callbacks")
-            callbacks.append(callback)
+            callbacks.append(callback) # 커맨드에 대한 리스트에 콜백을 집어넣음.
+        print(f"after all stuffs-schedule_listeners: {self.__schedule_listeners}") # 콜백 함수는 결국 '큐에 넣기' 함수 그 자체를 등록한거네.
+        # 그래서 이게 뭐 한걸까..
+        # 섭과 언섭 등록 후, 뭔가 무수히 이 메서드가 쓰이는데, .. 왜 계속 subscribe 하는거지? 그러다가 또 안해요.
 
     def remove_schedule_listener(self, callback):
         removed = False
@@ -381,21 +400,42 @@ class BroadcastScheduler(metaclass=abc.ABCMeta):
             raise ValueError("callback is not in overserver callbacks")
 
     def __perform_schedule_listener(self, command, params):
-        callbacks = self.__schedule_listeners.get(command)
-        if callbacks:
-            for cb in callbacks:
+        """ 이게 실질적인 콜백 루프인가..? 그래야 할 것 같은데.. """
+
+        print(f"퍼폼 스케쥴 리스너에서 - self.__schedule_listeners: {self.__schedule_listeners}") # put_command에서 넣은 (createTx, (직렬화tx 및 그 버저너)) 는 여기에 없어요..
+        print(f"command_input: {command}, params_input: {params}") #(createTx, (직렬화tx 및 그 버저너)) 는 잘 들어왔고. (그대로 인자에 건네줬으니까..)
+        callbacks = self.__schedule_listeners.get(command) # 리스너에 등록된 것이 없으니 그냥 패스.. 으으으음.....
+        print(f"callbacks: {callbacks}")
+        if callbacks: # 해당하는 콜백이 없으면 그냥 빠져나가네.
+            for cb in callbacks: # 아마도 등록한 큐에 넣기 함수에 이걸 집어넣겠지.
+                print(f"cb: {cb}")
                 cb(command, params)
+        print(f"퍼폼 스케쥴 리스너 나가기 전 - self.__schedule_listeners: {self.__schedule_listeners}") # 여기도 비어있는디. 그럼 왜 한거야!
 
     def schedule_job(self, command, params, block=False, block_timeout=None):
-        self._put_command(command, params, block=block, block_timeout=block_timeout)
-        self.__perform_schedule_listener(command, params)
+        """ 얘를 파악해야만, 만들어진 tx가 어떻게 다른 피어에게 전송될 지 알 것 같다. """
+        # todo: 현재로서는 얘가 다른 피어에게 tx를 날리는 것을 포착하지 못했음.. 흠;
+        print("---schedule_job called. put_command calling") # tx 생성 후 얘를 또 호출함?.. 근데 어디선가 브로드캐스트 라는 커맨드를 주었어!!!!!
+        print(f"self.__schedule_listeners: {self.__schedule_listeners}") # 제일 처음에는 비어있는게 당연하고.. 준비 다 되고 tx 받았을 경우에도 텅 비어있고.. (어쩌면 이미 타임아웃을 짧게 걸어서 다 비운 것일지도)
+        print(f"command_input: {command}, params_input: {params}") # tx를 보내면, 파라미터로 (tx전체가 담긴 Transaction 객체 (시리얼라이즈된 것으로 보임), tx버저너 객체) 를 준다.
+        self._put_command(command, params, block=block, block_timeout=block_timeout) # 이건 프로세스.큐에다가 (커맨드, 파라미터) 튜플째로 넣어버리는 것 같음.
+        # 이 지점에서 큐에 잘 넣은.. 게 아니라, 큐에다가만 넣고.. 리스너에 등록은 안한거같은데
+        print(f"perform_schedule_listener calling")
+        self.__perform_schedule_listener(command, params) # 이게 정확히.. 어떤 거지?;
+        print(f"스케쥴 잡 나가기 전의 self.__schedule_listeners: {self.__schedule_listeners}") # 제일 처음에는 비어있는게 당연하고..
 
     def schedule_broadcast(self, method_name, method_param, *, retry_times=None, timeout=None):
+        # tx를 받은 시점인지, 만든 이후인지 언젠진 모르겠으나, 얘가 브로드캐스트 스케쥴러에게 브로드캐스트 명령을 준다.
+        print("브로드캐스트 스케쥴러의  방송 스케쥴. schdule_broadcast 호출됨") # 누가 여기를 호출하는지 봐야 한다!
+        print(f"method_name: {method_name}, method_param: {method_param}, retry_times & timeout: {(retry_times, timeout)}")
         kwargs = {}
         if retry_times is not None:
             kwargs['retry_times'] = retry_times
         if timeout is not None:
             kwargs['timeout'] = timeout
+        print(f"kwargs: {kwargs}")
+
+        # 이것으로 인해 브로드캐스트 명령이 떨어진다.
         self.schedule_job(BroadcastCommand.BROADCAST, (method_name, method_param, kwargs))
 
 
@@ -447,6 +487,7 @@ class _BroadcastSchedulerThread(BroadcastScheduler):
         self.__broadcast_thread.wait()
 
     def _put_command(self, command, params, block=False, block_timeout=None):
+        """ 뭔가 콜백을 만드는듯한 냄새가 나는데 """
         if command == BroadcastCommand.CREATE_TX:
             priority = (10, time.time())
         elif isinstance(params, tuple) and params[0] == "AddTx":
@@ -454,13 +495,17 @@ class _BroadcastSchedulerThread(BroadcastScheduler):
         else:
             priority = (0, time.time())
 
-        future = futures.Future() if block else None
+        # 그럼 tx가 오면, 한번도 Block 파라미터를 안준 거 보면 모두 false겠군.======= 아.. 이게 블락이 막힌다는 의미의 블락이었음 --.. 아닌가..;
+        # 싱크로 하겠냐 아니냐를 묻는 질문이었네.
+        future = futures.Future() if block else None    # 블락이 True면 future를 만들고, 아니면 None..??;;
         self.__broadcast_thread.broadcast_queue.put((priority, command, params, future))
         if future is not None:
             future.result(block_timeout)
 
 
 class _BroadcastSchedulerMp(BroadcastScheduler):
+    """ 얘가 상속받아서 돌아가는거였네. """
+
     def __init__(self, channel: str, self_target: str=None):
         super().__init__()
 
@@ -525,7 +570,11 @@ class _BroadcastSchedulerMp(BroadcastScheduler):
         self.__process.join()
 
     def _put_command(self, command, params, block=False, block_timeout=None):
-        self.__broadcast_queue.put((command, params))
+        print(f"scheduler -MP: put_command called") # tx를 받으면, 그러니까 서브 프로세서의 풋 커맨드는 이제서야 실행되네
+        print(f"inputs (command, params): {(command, params)}")  # tx를 보내면, 파라미터로 (tx전체가 담긴 Transaction 객체 (시리얼라이즈된 것으로 보임), tx버저너 객체) 를 준다.
+        # print(f"self.__schedule_listeners: {self.__schedule_listeners}") # 이 시점에서 한번 봐 보자. 무엇이 있나 - 이거 보면 프로세스가 꼬이나..?
+        # print(f"self.__broadcast_queue: {self.__broadcast_queue}")
+        self.__broadcast_queue.put((command, params)) # 받은 커맨드 (createTx, (직렬화tx 및 그 버저너))를 큐에..넣어.?
 
 
 class BroadcastSchedulerFactory:
@@ -535,6 +584,7 @@ class BroadcastSchedulerFactory:
             is_multiprocessing = conf.IS_BROADCAST_MULTIPROCESSING
 
         if is_multiprocessing:
+            # print(f" 멀티 프로세스 분기! - 브로드캐스트 스케쥴러")
             return _BroadcastSchedulerMp(channel, self_target=self_target)
         else:
             return _BroadcastSchedulerThread(channel, self_target=self_target)

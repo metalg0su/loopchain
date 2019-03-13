@@ -443,7 +443,7 @@ class PeerService:
             print("\n\n써어브 채널쓰 끝. \n\n\n")
 
     async def ready_tasks(self):
-        await StubCollection().create_peer_stub()  # for getting status info. 얘는 내부에서  통신하기 위해 mq에 접속할 대리인을 만드는 것 같음.내부 통신 대리자
+        await StubCollection().create_peer_stub()  # for getting status info. 아니, 스텁 컬렉션을 이용해서 "내 발자취"를 남기는 것 같음. 이로써 다른 애들이 자신에게 연락할 수 있도록.
 
         # 채널이 여러개면 (멀티채널이면) 채널 갯수만큼 여기서 뜨는 것 같다.
         for channel_name, channel_info in self.__channel_infos.items():

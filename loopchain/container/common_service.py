@@ -26,7 +26,7 @@ from loopchain.baseservice import CommonThread, ObjectManager
 from loopchain.tools.grpc_helper import GRPCHelper
 
 
-class CommonService(CommonThread):
+class CommonService(CommonThread): # 중계소같은데. 이너 - 커먼 - 아우터 스러운
     """Manage common part of 'Peer' and 'Radio station' especially broadcast service"""
 
     def __init__(self, gRPC_module, inner_service_port=None):

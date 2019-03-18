@@ -137,8 +137,10 @@ class _Broadcaster:
                             f"timeout({timeout})")
 
     def __call_async_to_target(self, peer_target, method_name, method_param, is_stub_reuse, retry_times, timeout):
+        print(f"콜 어씽크 투 타겟 {(peer_target, method_name, method_param, is_stub_reuse, retry_times, timeout)}")
         try:
             stub_manager: StubManager = self.__audience[peer_target]
+            print("스텁 매니저. 누구에게 보내는건가: ", stub_manager) # 이래서 씽글턴 ㅡㅡ. 스텁매니저 메모리 주소만 나오네.
             if stub_manager is None:
                 logging.debug(f"broadcast_thread:__call_async_to_target Failed to connect to ({peer_target}).")
                 return
@@ -163,6 +165,7 @@ class _Broadcaster:
         :param method_name: gRPC interface
         :param method_param: gRPC message
         """
+        print("브로드캐스트 런 - 어씽크", "method_name:", method_name, "method_param:", method_param)
 
         if timeout is None:
             timeout = conf.GRPC_TIMEOUT_BROADCAST_RETRY
@@ -171,6 +174,7 @@ class _Broadcaster:
         # logging.debug(f"broadcast({method_name}) async... ({len(self.__audience)})")
 
         for target in self.__get_broadcast_targets(method_name):
+            print(f"target: {target}") # 보낼 피어의 주소가 적혀있다. (7100대 피어.) 피어 갯수대로 반복
             # util.logger.debug(f"method_name({method_name}), peer_target({target})")
             self.__call_async_to_target(target, method_name, method_param, True, retry_times, timeout)
 
@@ -180,6 +184,7 @@ class _Broadcaster:
         :param method_name: gRPC interface
         :param method_param: gRPC message
         """
+        print("브로드캐스트 런 - 씽크")
         # logging.debug(f"broadcast({method_name}) sync... ({len(self.__audience)})")
 
         if timeout is None:
@@ -223,6 +228,8 @@ class _Broadcaster:
             logging.warning(f"Already deleted peer: {audience_target}")
 
     def __handler_broadcast(self, broadcast_param):
+        """ 스케쥴 브로드캐스트하면 여기로 오는거지. ㅇㅇ """
+        # 근데 왜 굳이 까는거지
         # logging.debug("BroadcastThread received broadcast command")
         broadcast_method_name = broadcast_param[0]
         broadcast_method_param = broadcast_param[1]
@@ -232,34 +239,41 @@ class _Broadcaster:
         self.__broadcast_run(broadcast_method_name, broadcast_method_param, **broadcast_method_kwparam)
 
     def __make_tx_list_message(self):
+        print("tx list 메시지 만들기")
         tx_list = []
         tx_list_size = 0
         tx_list_count = 0
         remains = False
-        # 이 지점에서 큐에 쌓인 tx가 있으면 브로드캐스트 스케쥴러가 전송하려는 것 같이 보인다.
+        # 이 지점에서 큐에 쌓인 tx가 있으면 브로드캐스트 스케쥴러가 전송하려는 것 같이 보인다. 다 비우는 것이 목적.
+        # 용량이 넘치거나, 갯수가 넘치거나 하면  보내고, 아니면 계속 빌 때까지 tx_list에 담아서 몽땅 리턴.
         while not self.stored_tx.empty():
-            stored_tx_item = self.stored_tx.get()
-            tx_list_size += len(stored_tx_item)
-            tx_list_count += 1
-            # Tx 갯수나 용량을 기준으로 모아두었다가 보내버린다..
+            stored_tx_item = self.stored_tx.get() # tx 큐에서 하나 꺼내오고 - send_tx_IN_timer에서 put 했었음. - TxItem 객체
+            tx_list_size += len(stored_tx_item) # 그 tx의 사이즈..? 바이트 길이로 용량을 재는건가
+            tx_list_count += 1  # 갯수
+            # tx
             if tx_list_size >= conf.MAX_TX_SIZE_IN_BLOCK or tx_list_count >= conf.MAX_TX_COUNT_IN_ADDTX_LIST:
-                self.stored_tx.put(stored_tx_item)
+                self.stored_tx.put(stored_tx_item) # 빼 온 것을 다시 넣음
                 remains = True
                 break # 음.. 뭐지
             tx_list.append(stored_tx_item.get_tx_message())
+        # 얘가 보내는 것인가봄. GRPC가..
         message = loopchain_pb2.TxSendList(
             channel=self.__channel,
             tx_list=tx_list
         )
 
+        print(f"메시지 리턴 값: {remains}, {message}") # todo: remains 플래그는 왜 필요한 것인가?
         return remains, message
 
     def __send_tx_by_timer(self, **kwargs):
+        print("샌드 tx BY 타이머 실행됨")
         # util.logger.spam(f"broadcast_scheduler:__send_tx_by_timer")
         if self.__thread_variables[self.THREAD_VARIABLE_PEER_STATUS] == PeerThreadStatus.leader_complained:
+            print("샌드 tx BY 타이머 조건: 참")
             logging.warning("Leader is complained your tx just stored in queue by temporally: " # 무슨..말이지?
                             + str(self.stored_tx.qsize()))
         else:
+            print("샌드 tx BY 타이머 조건: 거짓")
             # Send single tx for test
             # stored_tx_item = self.stored_tx.get()
             # self.__broadcast_run("AddTx", stored_tx_item.get_tx_message())
@@ -272,15 +286,26 @@ class _Broadcaster:
 
     def __send_tx_in_timer(self, tx_item=None):
         """ in_timer와 by_timer...-_-?... """
+        print("샌드 tx IN 타이머 실행됨 ")
+        # 명령을 내려놓고, 콜백을 만드는 역할을 하는 것 같고, 실질적으로는 send_tx_by_timer가 보내는 것 같은 느낌이 든다.
+        # 그리고는 스케쥴러에 의해 콜백이 호출되는 것 같고.
+
         # util.logger.spam(f"broadcast_scheduler:__send_tx_in_timer")
         duration = 0
         # create_tx_handler를 거쳐 오면 tx_item이 항상 있는 것 같으네. stored_tx로 처리되는듯.
         if tx_item: # 없을 수도 있는건가..?
+            print("tx_item 있음")
+            print(self.stored_tx)
             self.stored_tx.put(tx_item) # 생성된 tx(객체)를 큐에 밀어 넣고 ..응? 알아서 돌아가면서 처리하는 애가 따로 있나?;
+            print(self.stored_tx)
             duration = conf.SEND_TX_LIST_DURATION
 
         # 이게 무엇인가?...
+        print("조건문")
+        print(TimerService.TIMER_KEY_ADD_TX)
+        print(self.__timer_service.timer_list)
         if TimerService.TIMER_KEY_ADD_TX not in self.__timer_service.timer_list:
+            print("조건문 실행됨. 타이머 서비스에 타이머 등록-_")
             self.__timer_service.add_timer(
                 TimerService.TIMER_KEY_ADD_TX,
                 Timer(
@@ -292,11 +317,13 @@ class _Broadcaster:
             )
         else:
             pass
+        print("샌드 tx IN 타이머 끝났어")
 
     def __handler_create_tx(self, create_tx_param):
         """ schedule_job 커맨드에 CREATE_TX하면 여기로 오는건가..? """
         # createTx 명령이 브로드캐스트 스케쥴러에게 들어오면, 여기로 매핑되는 듯 하다. (perform 어쩌구로 인해)
         # logging.debug(f"Broadcast create_tx....")
+        print("create_tx 핸들러 동작", create_tx_param)
         try:
             tx_item = TxItem.create_tx_item(create_tx_param, self.__channel)
         except Exception as e:
@@ -306,6 +333,7 @@ class _Broadcaster:
             return
 
         # 보내지는 Tx는 객체화되어 다음으로
+        print("샌드 tx IN 타이머", tx_item)
         self.__send_tx_in_timer(tx_item)
 
     def __handler_connect_to_leader(self, connect_to_leader_param):
@@ -422,7 +450,7 @@ class BroadcastScheduler(metaclass=abc.ABCMeta):
         # 이 지점에서 큐에 잘 넣은.. 게 아니라, 큐에다가만 넣고.. 리스너에 등록은 안한거같은데
         print(f"perform_schedule_listener calling")
         self.__perform_schedule_listener(command, params) # 이게 정확히.. 어떤 거지?;
-        print(f"스케쥴 잡 나가기 전의 self.__schedule_listeners: {self.__schedule_listeners}") # 제일 처음에는 비어있는게 당연하고..
+        print(f"스케쥴 잡 나가기 전의 self.__scHedule_listeners: {self.__schedule_listeners}") # 제일 처음에는 비어있는게 당연하고..
 
     def schedule_broadcast(self, method_name, method_param, *, retry_times=None, timeout=None):
         # tx를 받은 시점인지, 만든 이후인지 언젠진 모르겠으나, 얘가 브로드캐스트 스케쥴러에게 브로드캐스트 명령을 준다.

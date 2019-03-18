@@ -59,21 +59,23 @@ class BlockChain:
         self.__last_block = None
         # last unconfirmed block that the leader broadcast.
         self.last_unconfirmed_block = None
-        self.__channel_name = channel_name
+        self.__channel_name = channel_name # todo: 이것도 조금 간단하게 쓸 수 있지 않나. 위에꺼랑 합쳐서
         self.__peer_id = ChannelProperty().peer_id
 
         # block db has [ block_hash - block | block_height - block_hash | BlockChain.LAST_BLOCK_KEY - block_hash ]
-        self.__confirmed_block_db = blockchain_db
+        # 그러니까, 현재 생성된 db까지는 confirmed 라는 거로군...
+        self.__confirmed_block_db = blockchain_db # 블록매니저가 leveldb를 갖고, 그걸 그대로 블록체인에게 하달하여 중앙관리 식으로 이루어지나보군
         # logging.debug(f"BlockChain::init confirmed_block_db({self.__confirmed_block_db})")
 
-        if self.__confirmed_block_db is None:
+        if self.__confirmed_block_db is None: # 이 경우는 levelDB가 아얘 안들어온 경우로군. 그럴 일은 없으니 levelDB때 익셉션이 나서 반환받지 못한 경우겠군
             try:
-                self.__confirmed_block_db = leveldb.LevelDB(conf.DEFAULT_LEVEL_DB_PATH)
+                self.__confirmed_block_db = leveldb.LevelDB(conf.DEFAULT_LEVEL_DB_PATH) # todo: 그럼 직접 만드네. 근데 이 경우에는 블록매니저가 leveldb의 존재를 모르지않음? 여기 내부에서 만들어버리면.
             except leveldb.LevelDBError:
                 raise leveldb.LevelDBError("Fail To Create Level DB(path): " + conf.DEFAULT_LEVEL_DB_PATH)
 
+        # ====== 여기서부터는 뭐하는 것인가?
         # made block count as a leader
-        self.__invoke_results = {}
+        self.__invoke_results = {} # ??????
 
         self.__add_block_lock = threading.RLock()
         self.__confirmed_block_lock = threading.RLock()
@@ -81,12 +83,14 @@ class BlockChain:
         self.__total_tx = 0
         self.__nid: str = None
 
-        channel_option = conf.CHANNEL_OPTION[channel_name]
+        channel_option = conf.CHANNEL_OPTION[channel_name] # 이게 피어가 뜰 때 갖고있는 그거로군.. 이게 채널에 대한 옵션이었구나..
 
+        # 이 부분에서 conf에 있는 block_versions을 다루는군.. 그게 blockVersioner
         self.__block_versioner = BlockVersioner()
-        for version, height in channel_option.get("block_versions", {}).items():
-            self.__block_versioner.add_version(height, version)
+        for version, height in channel_option.get("block_versions", {}).items(): # 이 지점에서 conf의 블록 버전을 갖고 오는거로군
+            self.__block_versioner.add_version(height, version) # 여러개가 있으면 여러개를 등록할 수 있는거네
 
+        # 이 부분에서 conf에 있는 hash_versions다루는군.. 그게 transactionVersioner
         self.__tx_versioner = TransactionVersioner()
         for tx_version, tx_hash_version in channel_option.get("hash_versions", {}).items():
             self.__tx_versioner.hash_generator_versions[tx_version] = tx_hash_version
@@ -644,7 +648,7 @@ class BlockChain:
         #                    f"tx count({len(current_block.body.transactions)}), "
         #                    f"height({current_block.header.height})")
 
-        candidate_blocks = ObjectManager().channel_service.block_manager.candidate_blocks
+        candidate_blocks = ObjectManager().channel_service.block_manager.candidate_blocks # todo: candidate_block을 언제 넣었떠라 -> 여긴가 vote_unconfirmed_block(self, block_hash, is_validated): # 익셉션이 안났으면 true.
         with self.__confirmed_block_lock:
             logging.debug(f"BlockChain:confirm_block channel({self.__channel_name})")
 
@@ -756,10 +760,12 @@ class BlockChain:
         return block_dumped
 
     def block_loads(self, block_dumped: bytes) -> Block:
-        block_dumped = zlib.decompress(block_dumped)
-        block_json = block_dumped.decode(encoding=conf.PEER_DATA_ENCODING)
-        block_serialized = json.loads(block_json)
-        block_height = self.__block_versioner.get_height(block_serialized)
-        block_version = self.__block_versioner.get_version(block_height)
-        block_serializer = BlockSerializer.new(block_version, self.tx_versioner)
+        """ request로 외부에서 날아온 블락을 읽을 수 있게 포장 해체하고 번역하는 역할을 하는 것 같음.. """
+        block_dumped = zlib.decompress(block_dumped) # 압축되어서 온 건가봐. 그래서 압축 해제하고
+        block_json = block_dumped.decode(encoding=conf.PEER_DATA_ENCODING) # 디코드해서 선물상자 까고
+        block_serialized = json.loads(block_json) # 직렬화된 상태의 json 내용물을 보게 되는데.
+        block_height = self.__block_versioner.get_height(block_serialized) # 원래 블락에 높이가 담겨있구나..? 블락 버저너에게 이 블락의 높이를 해석하라고 시키고
+        block_version = self.__block_versioner.get_version(block_height)   # 버저너에게 블락 버전을 가져오라고 시키네.
+        # 그러니까, 이전에 온 블럭을 갖고 height와 version을 알아낸 다음에, 이쪽 피어에 있는 블록 시리얼라이저로 그것에 맞는 버전으로 디시리얼라이즈를 하겠다?
+        block_serializer = BlockSerializer.new(block_version, self.tx_versioner) # 그래야 블록을 제대로 해석할 수 있으니까..?
         return block_serializer.deserialize(block_serialized)

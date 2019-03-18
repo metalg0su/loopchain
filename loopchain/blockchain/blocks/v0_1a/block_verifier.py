@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 
 class BlockVerifier(BaseBlockVerifier):
+    """ 와 이거 뭥 ..."""
     version = BlockHeader.version
 
     def verify(self, block: 'Block', prev_block: 'Block', blockchain=None, generator: 'ExternalAddress'=None):

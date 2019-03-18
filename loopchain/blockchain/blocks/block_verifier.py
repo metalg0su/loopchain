@@ -31,7 +31,7 @@ class BlockVerifier(ABC):
 
     def __init__(self, tx_versioner: 'TransactionVersioner'):
         self._tx_versioner = tx_versioner
-        self.invoke_func: Callable[['Block'], ('Block', dict)] = None
+        self.invoke_func: Callable[['Block'], ('Block', dict)] = None  # todo: Callable 객체는 위치인자 1을 입력받고, 두 번째 인자를 출력한다고 써 있다.. 근데 호출이 아니라.. 이게 뭐지? 대괄호는
 
     @abstractmethod
     def verify(self, block: 'Block', prev_block: 'Block', blockchain=None, generator: 'ExternalAddress'=None):

@@ -66,6 +66,7 @@ class CandidateBlock:
 
 
 class CandidateBlocks:
+    """ vote block이 오면, 여기로 오는 듯 함 """
     def __init__(self):
         self.blocks = {}  # {block_hash(Hash32) : CandidateBlock}
         self.__blocks_lock = threading.Lock()

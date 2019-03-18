@@ -2,6 +2,7 @@ from . import genesis, v2, v3
 
 
 class TransactionVersioner:
+    """ 이걸 좀 더 파악해보자. BlockVersioner도 생각해봐야"""
     def __init__(self):
         self.hash_generator_versions = dict(default_hash_generator_versions)
 

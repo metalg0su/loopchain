@@ -50,6 +50,7 @@ class AgingCacheItem:
 
 
 class AgingCache(MutableMapping):
+    """ 이것의 정체는?.. 블록 매니저에 붙어 있었는데. """
     DEFAULT_ITEM_STATUS = 1  # recommend replace this with custom Enum Type
 
     def __init__(self, max_age_seconds, items=None, default_item_status=DEFAULT_ITEM_STATUS):

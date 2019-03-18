@@ -6,6 +6,7 @@ BlockVersion = namedtuple("BlockVersion", ("height", "name"))
 
 
 class BlockVersioner:
+    """ 날아온 블럭을 해석하는 자. 블럭의 version과 height를 알아낼 수 있는 듯 하다. """
     def __init__(self):
         self._versions: List[BlockVersion] = default_block_versions
 
@@ -32,6 +33,7 @@ class BlockVersioner:
             return version.name
 
     def get_height(self, block_dumped: Union[str, dict]):
+        # todo: 블록 만들 때, height가 추가되는 시점이 언제지..? 안써있어서...
         if isinstance(block_dumped, str):
            block_dumped = json.loads(block_dumped)
         return block_dumped["height"]

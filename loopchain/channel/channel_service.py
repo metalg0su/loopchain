@@ -743,6 +743,7 @@ class ChannelService:
         return new_block, response["txResults"]
 
     def score_invoke(self, _block: Block) -> dict or None:
+        """ 이건 무엇인가"""
         method = "icx_sendTransaction"
         transactions = []
         for tx in _block.body.transactions.values():

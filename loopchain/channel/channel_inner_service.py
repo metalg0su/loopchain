@@ -640,6 +640,7 @@ class ChannelInnerTask:
                 return response_code, None
 
     def __is_unconfirmed_block_by_complained_leader(self, unconfirmed_block: Block):
+        """ ...??? """
         last_unconfirmed_block = self._channel_service.block_manager.get_blockchain().last_unconfirmed_block
         if last_unconfirmed_block is None:
             return False
@@ -652,7 +653,9 @@ class ChannelInnerTask:
 
     @message_queue_task(type_=MessageQueueType.Worker)
     async def announce_unconfirmed_block(self, block_dumped) -> None:
+        """ 방송 AddTxList가 들어오는 엔트리 포인트를 찾아서 계속 올라가는 중. 얘가 블록을 받으면, add unconfirmedBlock을 불러서 큐에 넣게끔 한다."""
         try:
+            # 여기서 받은 블록에 대한 해석 작업이 이루어지는군.
             unconfirmed_block = self._channel_service.block_manager.get_blockchain().block_loads(block_dumped)
         except BlockError as e:
             traceback.print_exc()
@@ -664,24 +667,31 @@ class ChannelInnerTask:
                       f"height({unconfirmed_block.header.height})\n"
                       f"hash({unconfirmed_block.header.hash.hex()})")
 
-        last_block = self._channel_service.block_manager.get_blockchain().last_block
-        if last_block is None:
-            util.logger.debug("BlockChain has not been initialized yet.")
+        # 이 피어의 마지막 블록이 없으면.. 무시. 초기화가 안끝난 것이므로.
+        last_block = self._channel_service.block_manager.get_blockchain().last_block # 마지막 블록을 갖고...
+        if last_block is None: # todo: last_block은 블록체인이 초기화될 때, None이지만.. 응? 안변하는데?
+            util.logger.debug("BlockChain has not been initialized yet.") # todo: 초기화 끝나는 시점에 이미 None으로 종결되잖아 - 가 아니라, 다 되고나서 .init_epoch를 이용해서 값이 어떻게든 설정되면서 None에서 탈출
             return
+        # 내 블록의 높이보다 낮은 것이 발송되었군.. todo: 근데 이런 상황은 언제 있을 수 있는거지?..
         elif unconfirmed_block.header.height <= last_block.header.height:
             util.logger.debug("Ignore unconfirmed block because the block height is under last block height.")
             return
+        # 이게뭐옄ㅋㅋㅋ.. - 컴플레인된 리더가 unconfirmed 블록을 던졌으 경우. 인건가? 맞으면 패스.
         elif self.__is_unconfirmed_block_by_complained_leader(unconfirmed_block):
             util.logger.debug("Ignore unconfirmed block because the block is made by complained leader.")
             return
+        # 진행하려면 Vote, Watch, LeaderComplain 상태에서 되어야 한다.
         elif self._channel_service.state_machine.state not in ("Vote", "Watch", "LeaderComplain"):
             util.logger.debug(f"Can't add unconfirmed block in state({self._channel_service.state_machine.state}).")
             return
 
+        # 이 무수한 경우에만.. add를 갈 수 있다.
         added = self._channel_service.block_manager.add_unconfirmed_block(unconfirmed_block)
         if not added:
             return
+        print(f"일단 블락이 언컴펌드 큐에 잘 담겼어!========= vote_as_(peer)로 가야 할 것 같군! 아닐수도. ")
 
+        # todo: 여기서부터는 나중에 따로 보자고.. -_- 일단 블럭이 들어오면 그 블락이 어떻게 되는지를 추적해
         self._channel_service.state_machine.vote()
 
         if self._channel_service.peer_manager.get_leader_id(conf.ALL_GROUP_ID) != \

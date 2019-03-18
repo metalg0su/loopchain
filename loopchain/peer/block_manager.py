@@ -55,22 +55,24 @@ class BlockManager:
         self.__peer_id = peer_id
         self.__level_db = None
         self.__level_db_path = ""
+        # 얘가 제일 먼저군. 우선 db명을 건네주며 init을 하면...
         self.__level_db, self.__level_db_path = util.init_level_db(
             level_db_identity=f"{level_db_identity}_{channel_name}",
             allow_rename_path=False
-        )
+        ) # level_db 초기화..음 이건 좀 더 알아봐야 할 듯
         self.__txQueue = AgingCache(max_age_seconds=conf.MAX_TX_QUEUE_AGING_SECONDS,
-                                    default_item_status=TransactionStatusInQueue.normal)
-        self.__unconfirmedBlockQueue = queue.Queue()
-        self.__blockchain = BlockChain(self.__level_db, channel_name)
+                                    default_item_status=TransactionStatusInQueue.normal) # 역할이 무엇이지?
+        self.__unconfirmedBlockQueue = queue.Queue() # 블록매니저가 unconfirmed block을 갖고 있군
+
+        self.__blockchain = BlockChain(self.__level_db, channel_name) # level_db를 주면서 블록체인이란걸 갖게 도ㅓㅣ는군.
         self.__peer_type = None
         self.__consensus = None
         self.__consensus_algorithm = None
-        self.candidate_blocks = CandidateBlocks()
+        self.candidate_blocks = CandidateBlocks() # 음..
         self.__block_height_sync_lock = threading.Lock()
         self.__block_height_thread_pool = ThreadPoolExecutor(1, 'BlockHeightSyncThread')
         self.__block_height_future: Future = None
-        self.__block_generation_scheduler = BlockGenerationScheduler(self.__channel_name)
+        self.__block_generation_scheduler = BlockGenerationScheduler(self.__channel_name) # 음...
         self.__precommit_block: Block = None
         self.set_peer_type(loopchain_pb2.PEER)
         self.name = name
@@ -248,6 +250,7 @@ class BlockManager:
         return len(self.__txQueue)
 
     def confirm_prev_block(self, current_block: Block):
+        print("컨펌 prev 블락이 호출됨!. 아마도 VoteUnconfirmedBlock이 지난 다음에 일어나는 일이겠지")
         self.__blockchain.confirm_prev_block(current_block)
 
         # stop leader complain timer
@@ -257,27 +260,30 @@ class BlockManager:
         self.epoch = Epoch.new_epoch()
 
     def add_unconfirmed_block(self, unconfirmed_block):
-        logging.info(f"unconfirmed_block {unconfirmed_block.header.height}, {unconfirmed_block.body.confirm_prev_block}")
+        """ AddTxList 방송을 받으면 얘가 호출되는 듯 하다. """
+        logging.info(f"unconfirmed_block {unconfirmed_block.header.height}, {unconfirmed_block.body.confirm_prev_block}") # 이전 블락이 컨펌되었는가
         # util.logger.debug(f"-------------------add_unconfirmed_block---before confirm_prev_block, "
         #                    f"tx count({len(unconfirmed_block.body.transactions)}), "
         #                    f"height({unconfirmed_block.header.height})")
 
         try:
-            if unconfirmed_block.body.confirm_prev_block:
-                self.confirm_prev_block(unconfirmed_block)
-            elif self.__blockchain.last_unconfirmed_block is None:
-                if self.__blockchain.last_block.header.hash != unconfirmed_block.header.prev_hash:
+            # todo: 최초 1회 받고, 그걸 모두에게 보내서 받는데, 첫번째와 두번째가 달라지는 분기가 여기인 것 같다.
+            if unconfirmed_block.body.confirm_prev_block: # 날아온 블락에 confirm_prev_block 값이 True면. todo: 이 플래그는 어디서 만들어진거지...
+                self.confirm_prev_block(unconfirmed_block) # 이전 블락을 컨펌하고
+            elif self.__blockchain.last_unconfirmed_block is None: # 마지막으로 컨펌된 블락이 없으면.. -?;;
+                if self.__blockchain.last_block.header.hash != unconfirmed_block.header.prev_hash: # 마지막 블럭의 헤더에 있는 해쉬가 request 블럭의 이전 해쉬랑 다르면.. ==>
                     raise BlockchainError(f"last block is not previous block. block={unconfirmed_block}")
 
-                self.__blockchain.last_unconfirmed_block = unconfirmed_block
-                self.__channel_service.stop_leader_complain_timer()
+                self.__blockchain.last_unconfirmed_block = unconfirmed_block # 이전블락 == 언컴펌드 블락이라는 증명을 서로의 해쉬로 알아보는게로군.
+                self.__channel_service.stop_leader_complain_timer() # 리더 컴플레인 타이머를 멈춘다...
         except BlockchainError as e:
             logging.warning(f"BlockchainError while confirm_block({e}), retry block_height_sync")
-            self.__channel_service.state_machine.block_sync()
+            self.__channel_service.state_machine.block_sync() # 이 경우가 아니면 블록을 싱크받아야 한다는 상황이란 말인가
             return False
 
-        self.epoch.set_epoch_leader(unconfirmed_block.header.next_leader.hex_hx())
+        self.epoch.set_epoch_leader(unconfirmed_block.header.next_leader.hex_hx()) # ?#?!?!@?#!?
 
+        # 그래서 받은 블록을 큐에 넣어서, vote_as를 부르는듯 (직접 부르는 건 아니고, 큐를 감지하는 루프같은 것에 의해서겠지만)
         self.__unconfirmedBlockQueue.put(unconfirmed_block)
 
         return True
@@ -738,67 +744,88 @@ class BlockManager:
 
         self.__channel_service.broadcast_scheduler.schedule_broadcast("ComplainLeader", request)
 
-    def vote_unconfirmed_block(self, block_hash, is_validated):
-        """ 얘가 브로드캐스트 스케쥴러에게 VoteUnconfirmedBlock을 때리는 유일한 녀석 같다. """
+    def vote_unconfirmed_block(self, block_hash, is_validated): # 익셉션이 안났으면 true.
+        """ 일련의 과정을 거쳐서, 여기까지 내려옴. 외부에서 request.block -> Channel -> BlockManager -> 블록 해석 -> 큐에 넣고 -> vote (invoke 결과와 밀접하게) -> 여기"""
+
+        print(f" blockManager의 보트 언컴펌드 블록!!!! {block_hash}, {is_validated} ")
         logging.debug(f"block_manager:vote_unconfirmed_block ({self.channel_name}/{is_validated})")
 
+        # 결과에 따라서 성공 실패 여부를 ....
         if is_validated:
             vote_code, message = message_code.get_response(message_code.Response.success_validate_block)
         else:
             vote_code, message = message_code.get_response(message_code.Response.fail_validate_block)
 
+        # ...vote라는 것에 담아서
         block_vote = loopchain_pb2.BlockVote(
             vote_code=vote_code,
             channel=self.channel_name,
             message=message,
             block_hash=block_hash,
-            peer_id=self.__peer_id,
+            peer_id=self.__peer_id, # 자신의 피어 아이디를 주는 거로군. 누가 vote했는지.
             group_id=ChannelProperty().group_id)
 
+        # 로컬로 저장해두고..
         self.candidate_blocks.add_vote(
             block_hash,
             ChannelProperty().group_id,
             ChannelProperty().peer_id,
             is_validated
         )
+        # VoteUnconfirmedBlock 이란 메소드를 블록에 대한 해쉬와 함께 보내는군. 그러니까, 이 블록에 대한 검증을 마쳤습니다. 하고 다른 애들한테 브로드캐스팅하는것같다.
+        # 이 내용은 브로드캐스트란 커맨드를 받게 될 것이야. schedule_broadcast의 역할이 그거니까.
         self.__channel_service.broadcast_scheduler.schedule_broadcast("VoteUnconfirmedBlock", block_vote)
 
     def vote_as_peer(self):
         """Vote to AnnounceUnconfirmedBlock
         """
+        # todo: 다른 피어에서 AddTxList라는 내용을 브로드캐스트하면, 모종의 경로를 통해 블록매니저의 이곳이 호출된다. (리더가 아닌 피어임)
+        # todo: 그리고 얘가 브로드캐스트 스케쥴러를 부르는 형식이 된다
+        # todo: 얘는 누가 호출하는지 나중에 알아보기.
+
         if self.__unconfirmedBlockQueue.empty():
+            # 여기서 이벤트루프처럼 계속 리턴으로 끝나나보네. 비어있으면.
             return
 
-        unconfirmed_block: Block = self.__unconfirmedBlockQueue.get()
+        # 큐가 비어있지 않으면 여기로 오니까, channel_service.block_manager.add_unconfirmed_block(unconfirmed_block) 이 해결되면 이리로 올 것 같군. 여기서 큐에 넣으니까.
+        unconfirmed_block: Block = self.__unconfirmedBlockQueue.get() #큐에서 꺼내와서
         logging.debug(f"we got unconfirmed block ....{unconfirmed_block.header.hash.hex()}")
 
+        #----- 난관들. 여기서 걸리면 패스하는거야.
+        # 내 블록 높이가 언컴펌드 블록의 블록이랑 1 이상 차이가 나면.. todo: 이거 이미 "Ignore unconfirmed block because the block height is under last block height." 쪽에서 검증된거 아닌가..?
         my_height = self.__blockchain.block_height
         if my_height < (unconfirmed_block.header.height - 1):
-            self.__channel_service.state_machine.block_sync()
+            self.__channel_service.state_machine.block_sync() # 조치도 비슷한디.
             return
 
         # a block is already added that same height unconfirmed_block height
-        if my_height >= unconfirmed_block.header.height:
+        if my_height >= unconfirmed_block.header.height: # 내 블락이 날아온 블락보다 더 높으면..
             return
 
         logging.info("PeerService received unconfirmed block: " + unconfirmed_block.header.hash.hex())
 
-        block_version = self.__blockchain.block_versioner.get_version(unconfirmed_block.header.height)
-        block_verifier = BlockVerifier.new(block_version, self.__blockchain.tx_versioner)
-        block_verifier.invoke_func = self.__channel_service.score_invoke
+        block_version = self.__blockchain.block_versioner.get_version(unconfirmed_block.header.height) # 근데 이거 시리얼라이저할 떄 호출했는데, 또 호출해서 가져오네.
+        block_verifier = BlockVerifier.new(block_version, self.__blockchain.tx_versioner) # 아.. 날아온 블럭을 검증하는구나?
+        block_verifier.invoke_func = self.__channel_service.score_invoke # 잘은 모르겠으나 REST 쪽에서 보내기 전에 Score를 이용해서 verify하던 그것과 유사한 것이 아닌가?
 
         exception = None
         try:
+            # invoke란 verify하여 얻어낸 정당성 그 자체를 의미하는 것일수도.
+            # invoke 결과물은 dict인 것 같은데. 왜이리 복잡한 것인가. Base -> version -> 0.1
             invoke_results = block_verifier.verify(unconfirmed_block,
                                                    self.__blockchain.last_block,
                                                    self.__blockchain,
                                                    self.__blockchain.last_block.header.next_leader)
         except Exception as e:
+            # 익셉션이 날 수도 있는건가. 일단 적어두고 넘어가고.
+            # 익셉션이 났으면 is_validate가 거짓이 될 것임.
             exception = e
             logging.error(e)
             traceback.print_exc()
         else:
+            # 익셉션이 안난다면
             self.set_invoke_results(unconfirmed_block.header.hash.hex(), invoke_results)
             self.candidate_blocks.add_block(unconfirmed_block)
         finally:
-            self.vote_unconfirmed_block(unconfirmed_block.header.hash, exception is None)
+            # todo: invoke의 과정에 대해 이해하기. 뭔진 모르겠지만 이 일련의 과정은 모두 invoke라는 동작과 그 결과를 받아와ㅐ서 무언가를 하는 것이었다.
+            self.vote_unconfirmed_block(unconfirmed_block.header.hash, exception is None) # todo: 익셉션이 났다 해도, e는 지역변수로 처리되어서 UNbound스코프 에러 뜨는거 아니려나?.. 시도해보자

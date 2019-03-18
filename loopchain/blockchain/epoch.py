@@ -25,13 +25,15 @@ from loopchain.channel.channel_property import ChannelProperty
 
 
 class Epoch:
+    """ 이게 대체 뭐지 """
+    # 일단 이 부분이 상당히 트리거적인 부분같은데.
     COMPLAIN_VOTE_HASH = "complain_vote_hash_for_reuse_Vote_class"
 
     def __init__(self, block_manager, leader_id=None):
-        if block_manager.get_blockchain().last_block:
-            self.height = block_manager.get_blockchain().last_block.header.height + 1
+        if block_manager.get_blockchain().last_block: # init 시 기본값은 None임. -1인건 첫 블록
+            self.height = block_manager.get_blockchain().last_block.header.height + 1 # 기동되었으면 height를 지난 블럭 + 1로 잡는거군
         else:
-            self.height = 1
+            self.height = 1 # 기동되었으면.. 이리 오긴 할텐데.. 그러면 1로 잡고
         self.leader_id = leader_id
         self.__block_manager = block_manager
         self.__blockchain = self.__block_manager.get_blockchain()
@@ -40,6 +42,7 @@ class Epoch:
         # TODO using Epoch in BlockManager instead using candidate_blocks directly.
         # But now! only collect leader complain votes.
         self.__candidate_blocks = None
+        # todo: complain_vote?
         self.__complain_vote = Vote(Epoch.COMPLAIN_VOTE_HASH, ObjectManager().channel_service.peer_manager)
         self.complained_result = None
 

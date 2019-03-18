@@ -476,23 +476,27 @@ def init_level_db(level_db_identity, allow_rename_path=True):
     :return: level_db, level_db_path
     """
     level_db = None
-
+    # db명을 받아와서 ... 없으면 만들고  (./.storage)
     if not os.path.exists(conf.DEFAULT_STORAGE_PATH):
         os.makedirs(conf.DEFAULT_STORAGE_PATH, exist_ok=True)
 
+    # ./.storage/db_[level_db_identity] (db명
     db_default_path = osp.join(conf.DEFAULT_STORAGE_PATH, 'db_' + level_db_identity)
-    db_path = db_default_path
+    db_path = db_default_path   # 이걸 왜 두 번 쓴거지..?;
     logger.spam(f"utils:init_level_db ({level_db_identity})")
+    # 경로 설정만 끝난 거 아니냐
 
+    # levelDB 생성 시도 있으면 쭉 패스하겠군.
     retry_count = 0
-    while level_db is None and retry_count < conf.MAX_RETRY_CREATE_DB:
+    while level_db is None and retry_count < conf.MAX_RETRY_CREATE_DB: # 없으면 생성에 10회를 시도하는군
         try:
-            level_db = leveldb.LevelDB(db_path, create_if_missing=True)
+            level_db = leveldb.LevelDB(db_path, create_if_missing=True) # 여튼 init
         except leveldb.LevelDBError:
-            if allow_rename_path:
+            if allow_rename_path: # 생성 도중 실패하면 db_x회차 라고 이름을 만들어버리는군
                 db_path = db_default_path + str(retry_count)
         retry_count += 1
 
+    # 그래도 없다?..
     if level_db is None:
         logging.error("Fail! Create LevelDB")
         raise leveldb.LevelDBError("Fail To Create Level DB(path): " + db_path)

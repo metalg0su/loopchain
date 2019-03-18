@@ -528,6 +528,8 @@ class PeerOuterService(loopchain_pb2_grpc.PeerServiceServicer):
         :param context:
         :return:
         """
+        # 이보다 위로 더 거슬러 올라가면 grpc와 마주하게 되는 것을 보니, 여기가 엔트리포인트라고 봐도 일단은 무방할 것 같다.
+        # request에 블락이 담겨 오는 것 같다.
         channel_name = conf.LOOPCHAIN_DEFAULT_CHANNEL if request.channel == '' else request.channel
         util.logger.debug(f"peer_outer_service::AnnounceUnconfirmedBlock channel({channel_name})")
 

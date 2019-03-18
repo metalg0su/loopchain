@@ -97,6 +97,7 @@ class StubManager:
                             f"cause by : {result.details()}")
 
     def call_async(self, method_name, message, call_back=None, timeout=None, is_stub_reuse=True) -> grpc.Future:
+        print("콜 어씽크.")
         if timeout is None:
             timeout = conf.GRPC_TIMEOUT
         if call_back is None:

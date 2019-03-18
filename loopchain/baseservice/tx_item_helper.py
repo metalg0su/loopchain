@@ -21,6 +21,7 @@ from loopchain.protos import loopchain_pb2
 
 
 class TxItem:
+    """ 하.. 또 뭔가 문서화가 되어잇지 않은 기묘한 객체가.."""
     tx_serializers = {}
 
     def __init__(self, tx_json: str, channel: str):

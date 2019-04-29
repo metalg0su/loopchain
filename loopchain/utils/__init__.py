@@ -474,7 +474,6 @@ def parse_target_list(targets: str) -> list:
 
 def init_default_key_value_store(store_identity) -> Tuple[KeyValueStore, str]:
     """init default key value store
-
     :param store_identity: identity for store
     :return: KeyValueStore, store_path
     """

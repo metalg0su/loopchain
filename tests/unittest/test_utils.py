@@ -203,14 +203,25 @@ class TestUtils:
     def test_parse_target_list(self):
         pass
 
-    @skip_test(reason="Cannot test. tight dependency")
     def test_init_level_db(self, tmp_path):
-        db_path = "tmp.db"
-        util.init_level_db(
-            level_db_identity=db_path,
-            allow_rename_path=False
-        )
-        assert 0
+        """Test for init_level_db
+
+        Cannot monkey patch the method due to tight coupling
+        So, try to mimic the method
+
+        """
+
+        from leveldb import LevelDB
+
+        db_root = tmp_path / "db_root"
+        db_file = "this_is.database"
+
+        db_root.mkdir()
+        db, full_path = util.init_level_db(level_db_identity=db_file, allow_rename_path=False, db_root=db_root)
+
+        print(db, full_path)
+
+        assert isinstance(db, LevelDB)
 
     @skip_test(reason="Not Used?")
     def test_no_send_apm_event(self):

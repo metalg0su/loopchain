@@ -36,6 +36,7 @@ class TestConfigure:
         logging.debug(f"conf.TOKEN_TYPE_TOKEN: {conf.TOKEN_TYPE_TOKEN}")
         assert isinstance(conf.TOKEN_TYPE_TOKEN, str)
 
+    @pytest.fixture
     def test_load_configure_json(self, tmp_path):
         """Test for load_configure_json method
 
@@ -67,7 +68,9 @@ class TestConfigure:
         assert not ip_local_before_load_json == conf.IP_LOCAL
         assert not token_type_token_before_load_json == conf.TOKEN_TYPE_TOKEN
 
+
     @pytest.mark.skip
+    @pytest.fixture
     def test_load_configure_json_invalid_config_key(self, tmp_path):
         """Test for Invalid configure
 

@@ -79,11 +79,11 @@ class BlockChain:
             channel_name = conf.LOOPCHAIN_DEFAULT_CHANNEL
 
         # last block in block db
-        self.__last_block = None
+        self.__last_block: Block = None
         self.__made_block_counter = MadeBlockCounter()
 
         # last unconfirmed block that the leader broadcast.
-        self.last_unconfirmed_block = None
+        self.last_unconfirmed_block: Block = None
         self.__channel_name = channel_name
         self.__peer_id = ChannelProperty().peer_id
         self.__block_manager: BlockManager = block_manager
@@ -883,7 +883,7 @@ class BlockChain:
 
         return results
 
-    def put_nid(self, nid: str):
+    def put_nid(self, nid: str) -> None:
         """
         write nid to DB
         :param nid: Network ID

@@ -568,12 +568,6 @@ class ChannelService:
         self.__block_manager.pop_old_block_hashes(block.header.height)
         return True
 
-    def score_remove_precommit_state(self, block: Block):
-        invoke_fail_info = json.dumps({"block_height": block.height, "block_hash": block.block_hash})
-        stub = StubCollection().score_stubs[ChannelProperty().name]
-        stub.sync_task().remove_precommit_state(invoke_fail_info)
-        return True
-
     def turn_on_leader_complain_timer(self):
         """Turn on a leader complaint timer by the configuration name of `ALLOW_MAKE_EMPTY_BLOCK`.
         """

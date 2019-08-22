@@ -18,6 +18,7 @@ import json
 import logging
 import traceback
 from asyncio import Event
+from loopchain.channel import channel_helpers
 
 import websockets
 from jsonrpcclient.request import Request
@@ -116,7 +117,7 @@ class NodeSubscriber:
                 self._exception = ConnectionError(kwargs['error'])
                 return
             else:
-                return ObjectManager().channel_service.shutdown_peer(message=kwargs.get('error'))
+                return channel_helpers.shutdown_peer(message=kwargs.get('error'))
 
         block_dict, votes_dumped = kwargs.get('block'), kwargs.get('confirm_info', '')
         try:

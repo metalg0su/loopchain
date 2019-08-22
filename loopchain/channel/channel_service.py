@@ -18,6 +18,8 @@ import logging
 import signal
 import traceback
 
+from loopchain.channel import channel_helpers
+
 from earlgrey import MessageQueueService
 
 from loopchain import configure as conf
@@ -437,10 +439,6 @@ class ChannelService:
         )).add_done_callback(_handle_exception)
         await subscribe_event.wait()
 
-    def shutdown_peer(self, **kwargs):
-        logging.debug(f"channel_service:shutdown_peer")
-        StubCollection().peer_stub.sync_task().stop(message=kwargs['message'])
-
     def set_peer_type(self, peer_type):
         """Set peer type when peer init only
 
@@ -616,7 +614,7 @@ class ChannelService:
     def start_shutdown_timer_when_fail_subscribe(self):
         error = f"Shutdown by Subscribe retry timeout({conf.SHUTDOWN_TIMER} sec)"
         self.__timer_service.add_timer_convenient(timer_key=TimerService.TIMER_KEY_SHUTDOWN_WHEN_FAIL_SUBSCRIBE,
-                                                  duration=conf.SHUTDOWN_TIMER, callback=self.shutdown_peer,
+                                                  duration=conf.SHUTDOWN_TIMER, callback=channel_helpers.shutdown_peer,
                                                   callback_kwargs={"message": error})
 
     def stop_shutdown_timer_when_fail_subscribe(self):

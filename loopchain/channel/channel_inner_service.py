@@ -32,6 +32,7 @@ from loopchain.blockchain.transactions import (Transaction, TransactionSerialize
                                                TransactionVersioner)
 from loopchain.blockchain.types import Hash32
 from loopchain.blockchain.votes.v0_1a import BlockVote, LeaderVote
+from loopchain.channel import channel_helpers
 from loopchain.channel.channel_property import ChannelProperty
 from loopchain.protos import loopchain_pb2, message_code
 from loopchain.qos.qos_controller import QosController, QosCountControl
@@ -621,7 +622,7 @@ class ChannelInnerTask:
             logging.debug(f"CreateTX : load score info fail\n"
                           f"cause : {e}")
 
-        send_tx_type = self._channel_service.get_channel_option()["send_tx_type"]
+        send_tx_type = channel_helpers.get_channel_option()["send_tx_type"]
         tx.init_meta(ChannelProperty().peer_id, score_id, score_version, ChannelProperty().name, send_tx_type)
         tx.put_data(data)
         tx.sign_hash(ChannelProperty().peer_auth)

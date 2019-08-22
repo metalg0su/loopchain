@@ -248,7 +248,7 @@ class ChannelService:
         self.__inner_service.update_sub_services_properties(nid=int(nid, 16))
 
     def __get_role_switch_block_height(self):
-        return self.get_channel_option().get('role_switch_block_height', -1)
+        return channel_helpers.get_channel_option().get('role_switch_block_height', -1)
 
     def _get_node_type_by_peer_list(self):
         if self.__peer_manager.get_peer(ChannelProperty().peer_id):
@@ -395,9 +395,6 @@ class ChannelService:
     def is_support_node_function(self, node_function):
         return conf.NodeType.is_support_node_function(node_function, ChannelProperty().node_type)
 
-    def get_channel_option(self) -> dict:
-        return conf.CHANNEL_OPTION[ChannelProperty().name]
-
     def get_rep_ids(self) -> list:
         return [ExternalAddress.fromhex_address(peer_id, allow_malformed=True)
                 for peer_id in self.__peer_manager.peer_list]
@@ -478,7 +475,7 @@ class ChannelService:
         self.__block_manager.set_peer_type(peer_type)
 
     def _is_genesis_node(self):
-        return ('genesis_data_path' in self.get_channel_option()
+        return ('genesis_data_path' in channel_helpers.get_channel_option()
                 and self.is_support_node_function(conf.NodeFunction.Vote))
 
     def __ready_to_height_sync(self):

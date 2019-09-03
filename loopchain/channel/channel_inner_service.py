@@ -1018,7 +1018,7 @@ class ChannelInnerTask:
     @message_queue_task(type_=MessageQueueType.Worker)
     def stop(self, message):
         logging.info(f"channel_inner_service:stop message({message})")
-        self._channel_service.close()
+        self._channel_service.cleanup()
 
 
 class ChannelInnerService(MessageQueueService[ChannelInnerTask]):

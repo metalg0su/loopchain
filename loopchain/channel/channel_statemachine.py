@@ -28,6 +28,45 @@ from loopchain.protos import loopchain_pb2
 from loopchain.statemachine import statemachine
 from loopchain.utils import loggers
 
+import enum
+
+
+class States:
+    InitComponents = "InitComponents"
+    Consensus = "Consensus"
+    BlockHeightSync = "BlockHeightSync "
+    EvaluateNetwork = "EvaluateNetwork"
+    SubscribeNetwork = "SubscribeNetwork"
+    BlockGenerate = "BlockGenerate"
+    Watch = "Watch"
+    BlockSync = "BlockSync"
+    Vote = "Vote"
+    LeaderComplain = "LeaderComplain"
+    ResetNetwork = "ResetNetwork"
+    GracefulShutdown = "GracefulShutdown"
+
+
+states = [
+    State(name=States.InitComponents),
+    State(name=States.Consensus, ignore_invalid_triggers=True, on_enter='_consensus_on_enter'),
+    State(name=States.BlockHeightSync, ignore_invalid_triggers=True, on_enter='_blockheightsync_on_enter'),
+    State(name=States.EvaluateNetwork),
+    State(name=States.BlockSync, ignore_invalid_triggers=True, on_enter='_blocksync_on_enter', on_exit='_blocksync_on_exit'),
+    State(name=States.SubscribeNetwork, ignore_invalid_triggers=True, on_enter='_subscribe_network_on_enter', on_exit='_subscribe_network_on_exit'),
+    State(name=States.Watch, ignore_invalid_triggers=True),
+    State(name=States.Vote, ignore_invalid_triggers=True, on_enter='_vote_on_enter', on_exit='_vote_on_exit'),
+    State(name=States.BlockGenerate, ignore_invalid_triggers=True, on_enter='_blockgenerate_on_enter', on_exit='_blockgenerate_on_exit'),
+    State(name=States.LeaderComplain, ignore_invalid_triggers=True, on_enter='_leadercomplain_on_enter', on_exit='_leadercomplain_on_exit'),
+    State(name=States.ResetNetwork, ignore_invalid_triggers=True, on_enter='_do_reset_network_on_enter'),
+    State(name=States.GracefulShutdown)
+]
+
+
+transisions = [
+
+]
+service_available_states = [States.BlockGenerate, States.Vote, States.LeaderComplain, States.Watch]
+
 
 @statemachine.StateMachine("Channel State Machine")
 class ChannelStateMachine(object):
@@ -69,10 +108,12 @@ class ChannelStateMachine(object):
               'GracefulShutdown']
     init_state = 'InitComponents'
     state = init_state
-    service_available_states = ["BlockGenerate", "Vote", "LeaderComplain", "Watch"]
 
     def __init__(self, channel_service):
         self.__channel_service = channel_service
+
+        self.machine.add_ordered_transitions([States.InitComponents, States.Consensus, States.BlockHeightSync],
+                                             conditions=["init2Init", "Init2Cons", "Cons2BlockHeight"])
 
         self.machine.add_transition(
             'complete_subscribe', 'SubscribeNetwork', 'BlockGenerate', conditions=['_is_leader'])

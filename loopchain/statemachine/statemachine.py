@@ -46,7 +46,7 @@ class StateMachine(object):
                 # self.name = "superman"
 
                 cls.machine = Machine(model=self, states=cls.states, initial=cls.init_state,
-                                      ignore_invalid_triggers=True)
+                                      ignore_invalid_triggers=True, auto_transitions=False)
 
                 cls.__init__(self, *cls_args)
 

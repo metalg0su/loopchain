@@ -1,7 +1,4 @@
 language: python
-python:
- - "3.6"
- - "3.7"
 dist: bionic
 services:
 - docker
@@ -12,9 +9,6 @@ env:
   - GOROOT="/snap/go/current"
   - GOTOOLDIR="/snap/go/current/pkg/tool/linux_amd64"
   - export PATH=/snap/bin:$PATH
- matrix:
-  - TEST_TARGET=unit-test
-  - TEST_TARGET=integration-test
 
 matrix:
  allow_failures:
@@ -63,12 +57,41 @@ before_install:
 install:
  - make develop
  - pip list
-script:
- - figlet -f smslant "loopchain test"
- - make $TEST_TARGET
+
+stages:
+ - name: Unit Test
+ - name: Integration Test
 
 jobs:
  include:
+  # Default stage -_-
+  - stage: Test
+    before_install: echo "pass"
+    install: echo "pass"
+
+  - stage: Unit Test
+    python: "3.6"
+    script:
+     - figlet -f smslant "loopchain test"
+     - make unit-test
+  - stage: Unit Test
+    python: "3.7"
+    script:
+     - figlet -f smslant "loopchain test"
+     - make unit-test
+
+  - stage: Integration Test
+    python: "3.6"
+    script:
+     - figlet -f smslant "loopchain test"
+     - make integration-test
+  - stage: Integration Test
+    python: "3.7"
+    script:
+     - figlet -f smslant "loopchain test"
+     - make integration-test
+
+
   - stage: After
     python: "3.7"
     before_install: echo "overwrite before_install"

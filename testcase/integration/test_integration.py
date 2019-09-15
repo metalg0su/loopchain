@@ -17,7 +17,7 @@ class TestSendTx:
     tx_hash_by_channel = {}
 
     @pytest.fixture(scope="class", autouse=True)
-    def run_and_wait(self, request, config_factory_class_scoped, run_loopchain):
+    def run_and_wait(self, request, config_factory_class_scoped, loopchain):
         """Run loopchain nodes then wait until the test ends."""
         channel_count = int(request.config.getoption("--channel-count"))
         peer_count = int(request.config.getoption("--peer-count"))
@@ -28,7 +28,7 @@ class TestSendTx:
 
         TestSendTx.config = config
 
-        assert run_loopchain(config=config)
+        assert loopchain.run(config)
 
     @pytest.mark.parametrize("channel_name", conftest.channel_list)
     @pytest.mark.parametrize("port", conftest.port_list)

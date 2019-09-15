@@ -1,14 +1,12 @@
 import functools
-import subprocess
 import time
-from typing import List
 
 import pytest
 
 from testcase.integration.configure.config_generator import (
     Account, ChannelConfig, PeerConfig, GenesisData, ConfigInterface
 )
-from testcase.integration.helper import loopchain
+from .helper import Loopchain
 
 port_list = []
 channel_list = []
@@ -100,25 +98,13 @@ def config_factory_class_scoped(tmp_path_factory):
 
 
 @pytest.fixture(scope="class")
-def run_loopchain():
-    proc_list: List[subprocess.Popen] = []
-
-    def _loopchain(config: ConfigInterface):
-        nonlocal proc_list
-
-        for k, peer_config in enumerate(config.peer_config_list, start=1):
-            print(f"==========PEER_{k}/{config.peer_count} READY TO START ==========")
-            loopchain_proc = loopchain(peer_config=peer_config)
-            proc_list.append(loopchain_proc)
-        print(f"==========ALL GREEN ==========")
-        time.sleep(3)  # WarmUp before test starts
-
-        return proc_list
+def loopchain():
+    _loopchain = Loopchain()
 
     yield _loopchain
 
     # tear down
-    for proc in proc_list:
+    for proc in _loopchain.proc_list:
         proc.terminate()
 
     time.sleep(1)  # Give CoolDown for additional tests

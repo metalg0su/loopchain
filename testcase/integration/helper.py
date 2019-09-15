@@ -1,6 +1,8 @@
+from multipledispatch import dispatch
 import json
 import subprocess
 import time
+from typing import List
 from typing import Optional
 from typing import Union
 
@@ -15,7 +17,9 @@ from iconsdk.wallet.wallet import KeyWallet
 from loopchain.blockchain.blocks import Block, BlockSerializer
 from loopchain.blockchain.blocks import v0_3
 from loopchain.blockchain.transactions import TransactionVersioner
-from testcase.integration.configure.config_generator import PeerConfig
+from testcase.integration.configure.config_generator import (
+    ConfigInterface
+)
 
 MAX_REQUEST_RETRY = 60
 
@@ -66,43 +70,6 @@ def get_block(endpoint, nth_block: Union[int, str] = "latest", block_version=v0_
     return block
 
 
-def _request_service_available(endpoint, timeout=1) -> Optional[dict]:
-    exc = None
-    try:
-        response = requests.get(endpoint, timeout=timeout)
-        response = response.json()
-    except (requests.exceptions.ConnectionError,
-            requests.exceptions.ReadTimeout,
-            json.JSONDecodeError) as e:
-        exc = e
-        response = None
-
-    print(f"\n\n\n\nTEST>> {exc or response}")
-    return response
-
-
-def ensure_run(endpoint: str, max_retry=MAX_REQUEST_RETRY):
-    interval_sleep_sec = 1
-    retry_count = 0
-    is_success = False
-
-    while not is_success:
-        if retry_count >= max_retry:
-            break
-        time.sleep(interval_sleep_sec)
-        retry_count += 1
-
-        response = _request_service_available(endpoint, timeout=interval_sleep_sec)
-        if not response:
-            continue
-
-        if response["service_available"]:
-            is_success = True
-
-    print("is_success?: ", is_success)
-    return is_success
-
-
 def send_tx(endpoint, wallet: KeyWallet, from_addr=None, to_addr=None) -> str:
     print("REQ endpoint: ", endpoint)
     icon_service = IconService(HTTPProvider(endpoint))
@@ -150,13 +117,66 @@ def get_tx_by_hash(endpoint, tx_hash, max_retry=MAX_REQUEST_RETRY):
     return tx_result
 
 
-def loopchain(peer_config: PeerConfig) -> subprocess.Popen:
-    """Run single loopchain node by given args."""
-    cmd = ["loop", "-d", "-o", peer_config.path]
-    print("Run loopchain cmd: ", cmd)
-    proc = subprocess.Popen(cmd)
+def _request_service_available(endpoint, timeout=1) -> Optional[dict]:
+    exc = None
+    try:
+        response = requests.get(endpoint, timeout=timeout)
+        response = response.json()
+    except (requests.exceptions.ConnectionError,
+            requests.exceptions.ReadTimeout,
+            json.JSONDecodeError) as e:
+        exc = e
+        response = None
 
-    endpoint = f"http://localhost:{peer_config.rest_port}/api/v1/avail/peer"
-    assert ensure_run(endpoint=endpoint)
+    print(f"\n\n\n\nTEST>> {exc or response}")
+    return response
 
-    return proc
+
+def ensure_run(endpoint: str, max_retry=MAX_REQUEST_RETRY):
+    interval_sleep_sec = 1
+    retry_count = 0
+    is_success = False
+
+    while not is_success:
+        if retry_count >= max_retry:
+            break
+        time.sleep(interval_sleep_sec)
+        retry_count += 1
+
+        response = _request_service_available(endpoint, timeout=interval_sleep_sec)
+        if not response:
+            continue
+
+        if response["service_available"]:
+            is_success = True
+
+    print("is_success?: ", is_success)
+    return is_success
+
+
+class Loopchain:
+    def __init__(self):
+        self._proc_list: List[subprocess.Popen] = []
+
+    @property
+    def proc_list(self) -> List[subprocess.Popen]:
+        return self._proc_list
+
+    def run(self, config: ConfigInterface, rs_target=None) -> bool:
+        for k, peer_config in enumerate(config.peer_config_list, start=1):
+            cmd = ["loop", "-d", "-o", peer_config.path]
+            if rs_target:
+                cmd.extend(["-r", rs_target])
+            print("Run loopchain cmd: ", cmd)
+
+            proc = subprocess.Popen(cmd)
+            self._proc_list.append(proc)
+
+            endpoint = f"http://localhost:{peer_config.rest_port}/api/v1/avail/peer"
+            assert ensure_run(endpoint=endpoint)
+
+        print(f"==========ALL GREEN ==========")
+        time.sleep(3)  # WarmUp before test starts
+
+        return True
+

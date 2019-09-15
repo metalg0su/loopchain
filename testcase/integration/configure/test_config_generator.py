@@ -85,22 +85,30 @@ class TestChannelConfig:
     ])
     def test_set_block_version_height(self, channel_config_factory, height_v0_1a, height_v0_3):
         channel_config: ChannelConfig = channel_config_factory()
-        channel_config.set_block_version_heights(height_v0_1a=height_v0_1a, height_v0_3=height_v0_3)
+        channel_config.block_versions = {v0_1a.version: height_v0_1a, v0_3.version: height_v0_3}
 
         config_dict = channel_config.generate()
         block_versions: dict = config_dict[ChannelConfigKey.BLOCK_VERSIONS.value]
         assert block_versions[v0_1a.version] == height_v0_1a
         assert block_versions[v0_3.version] == height_v0_3
 
-    def test_ignore_block_version_if_negative_num(self, channel_config_factory):
+    def test_raise_exc_if_block_version_is_not_dict_data(self, channel_config_factory):
         channel_config: ChannelConfig = channel_config_factory()
 
-        channel_config.set_block_version_heights(height_v0_1a=0, height_v0_3=-1)
-        config_dict = channel_config.generate()
-        block_versions: dict = config_dict[ChannelConfigKey.BLOCK_VERSIONS.value]
+        with pytest.raises(Exception, match="dict"):
+            channel_config.block_versions = (0, 1)
 
-        assert block_versions.get(v0_1a.version) == 0
-        assert not block_versions.get(v0_3.version)
+    def test_raise_exc_if_block_version_is_invalid(self, channel_config_factory):
+        channel_config: ChannelConfig = channel_config_factory()
+
+        with pytest.raises(Exception, match="version"):
+            channel_config.block_versions = {"v0.001": 0}
+
+    def test_raise_exc_if_block_version_height_is_negative(self, channel_config_factory):
+        channel_config: ChannelConfig = channel_config_factory()
+
+        with pytest.raises(Exception, match="height"):
+            channel_config.block_versions = {v0_1a.version: 0, v0_3.version: -1}
 
     def test_set_genesis_data_path(self, channel_config_factory):
         channel_config: ChannelConfig = channel_config_factory()

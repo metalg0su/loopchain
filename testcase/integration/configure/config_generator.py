@@ -66,6 +66,16 @@ class ChannelConfig:
     def __init__(self, name="icon_dex"):
         # Required
         self._name: str = name
+        self._radiostations: List[str] = [
+            "[local_ip]:9000",
+            "[local_ip]:9100",
+            "[local_ip]:9200",
+            "[local_ip]:9300",
+            "[local_ip]:9400",
+            "[local_ip]:9500",
+            "[local_ip]:9600",
+            "[local_ip]:9700",
+        ]
 
         # Generated
         self._block_versions: Dict[str, int] = {}
@@ -89,15 +99,36 @@ class ChannelConfig:
     def genesis_data_path(self, path):
         self._genesis_data_path = path
 
-    def set_block_version_heights(self, height_v0_1a: int, height_v0_3: int):
-        block_version = {}
+    @property
+    def block_versions(self) -> dict:
+        return self._block_versions
 
-        if height_v0_1a >= 0:
-            block_version[v0_1a.version] = height_v0_1a
-        if height_v0_3 >= 0:
-            block_version[v0_3.version] = height_v0_3
+    @block_versions.setter
+    def block_versions(self, block_versions_with_height: dict):
+        block_versions = [v0_1a.version, v0_3.version]
 
-        self._block_versions = block_version
+        if not isinstance(block_versions_with_height, dict):
+            raise RuntimeError(f"Need dict value: {block_versions_with_height}")
+
+        if not all(block_version in block_versions
+                   for block_version in block_versions_with_height.keys()):
+            raise RuntimeError(f"Invalid block version: {block_versions_with_height}")
+
+        if not all(height >= 0 for height in block_versions_with_height.values()):
+            raise RuntimeError(f"Invalid block height: {block_versions_with_height}")
+
+        self._block_versions = block_versions_with_height
+
+    @property
+    def radiostations(self):
+        return self._radiostations
+
+    @radiostations.setter
+    def radiostations(self, radiostation_list: list):
+        if not isinstance(radiostation_list, list):
+            raise RuntimeError("List[str] required.")
+
+        self._radiostations = radiostation_list
 
     def generate(self) -> dict:
         if not self._block_versions:
@@ -114,16 +145,7 @@ class ChannelConfig:
             ChannelConfigKey.CONSENSUS_CERT_USE.value: self._consensus_cert_use,
             ChannelConfigKey.TX_CERT_USE.value: self._tx_cert_use,
             ChannelConfigKey.KEY_LOAD_TYPE.value: self._key_load_type,
-            ChannelConfigKey.RADIOSTATIONS.value: [
-                "[local_ip]:9000",
-                "[local_ip]:9100",
-                "[local_ip]:9200",
-                "[local_ip]:9300",
-                "[local_ip]:9400",
-                "[local_ip]:9500",
-                "[local_ip]:9600",
-                "[local_ip]:9700",
-            ]
+            ChannelConfigKey.RADIOSTATIONS.value: self._radiostations
         }
 
         if self.genesis_data_path:
@@ -312,7 +334,7 @@ class ConfigGenerator:
 
         for channel_num in range(how_many):
             channel_config: ChannelConfig = ChannelConfig(f"channel_{channel_num}")
-            channel_config.set_block_version_heights(height_v0_1a=height_v0_1a, height_v0_3=height_v0_3)
+            channel_config.block_versions = {v0_1a.version: height_v0_1a, v0_3.version: height_v0_3}
             self._channel_config_list.append(channel_config)
 
     def generate_peer_configs(self, how_many: int):

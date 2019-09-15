@@ -6,6 +6,8 @@ import pytest
 from testcase.integration.configure.config_generator import (
     Account, ChannelConfig, PeerConfig, GenesisData, ChannelManageData
 )
+from loopchain.blockchain.blocks import v0_1a
+from loopchain.blockchain.blocks import v0_3
 
 
 @pytest.fixture
@@ -22,7 +24,7 @@ def account_factory(tmp_path):
 def channel_config_factory() -> Callable[..., ChannelConfig]:
     def _channel_config(channel_name="icon_dex", height_v0_1a: int = 0, height_v0_3: int = 1) -> ChannelConfig:
         channel_config: ChannelConfig = ChannelConfig(channel_name)
-        channel_config.set_block_version_heights(height_v0_1a=height_v0_1a, height_v0_3=height_v0_3)
+        channel_config.block_versions = {v0_1a.version: height_v0_1a, v0_3.version: height_v0_3}
 
         return channel_config
 

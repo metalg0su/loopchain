@@ -16,26 +16,51 @@ class Loopchain:
     def proc_list(self) -> List[subprocess.Popen]:
         return self._proc_list
 
+    def run_by_cmd(self, cmd: list, rest_port: int, channel_names):
+        self._popen_and_add(cmd)
+
+        endpoint = f"http://localhost:{rest_port}/api/v1/avail/peer"
+        self._run(endpoint=endpoint, channel_names=channel_names)
+
+        return True
+
     def run(self, config: ConfigGenerator, rs_target=None) -> bool:
         for k, peer_config in enumerate(config.peer_config_list, start=1):
-            cmd = ["loop", "-d", "-o", peer_config.path]
-            if rs_target:
-                cmd.extend(["-r", rs_target])
-            print("Run loopchain cmd: ", cmd)
-
-            proc = subprocess.Popen(cmd)
-            self._proc_list.append(proc)
+            cmd = self._make_cmd(config_path=peer_config.path, rs_target=rs_target)
+            self._popen_and_add(cmd)
 
             endpoint = f"http://localhost:{peer_config.rest_port}/api/v1/avail/peer"
             channel_names = config.peer_config_list[0].channel_name_list
 
-            for channel in channel_names:
-                assert _ensure_run(endpoint=endpoint, channel_name=channel)
+            self._run(endpoint=endpoint, channel_names=channel_names)
+
+        return True
+
+    def _make_cmd(self, config_path, rs_target):
+        cmd = ["loop", "-d"]
+
+        if config_path:
+            cmd.extend(["-o", config_path])
+        if rs_target:
+            cmd.extend(["-r", rs_target])
+
+        print("Run loopchain cmd: ", cmd)
+
+        return cmd
+
+    def _popen_and_add(self, cmd):
+        print(f"Run loopchain by cmd: {cmd}")
+
+        proc = subprocess.Popen(cmd)
+        self._proc_list.append(proc)
+
+    def _run(self, endpoint: str, channel_names: list):
+        for channel in channel_names:
+            assert _ensure_run(endpoint=endpoint, channel_name=channel)
 
         print(f"==========ALL GREEN ==========")
         time.sleep(3)  # WarmUp before test starts
 
-        return True
 
 
 def _ensure_run(endpoint: str, channel_name: str, max_retry=60):

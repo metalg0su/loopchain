@@ -130,3 +130,52 @@ class TestSendTx:
         block_verifier.verify_transactions(block)
 
         assert True
+
+
+class TestBlockSync:
+    TARGET_HEIGHT = 100
+    from loopchain.configure_default import URL_CITIZEN_MAINNET, URL_CITIZEN_TESTNET
+
+    @pytest.fixture
+    def setup_citizen_sync(self):
+        from loopchain.configure_default import LOOPCHAIN_ROOT_PATH, CONF_PATH_LOOPCHAIN_MAINNET
+        import os
+        import json
+
+        with open(CONF_PATH_LOOPCHAIN_MAINNET) as f:
+            config_file = json.load(f)
+            storage_name = config_file.get("DEFAULT_STORAGE_PATH")
+
+        storage_path = os.path.join(LOOPCHAIN_ROOT_PATH, storage_name)
+        os.rmdir(storage_path)
+
+    @pytest.mark.parametrize("rs_target", [URL_CITIZEN_MAINNET, URL_CITIZEN_TESTNET])
+    def test_sync(self, setup_citizen_sync, loopchain, rs_target):
+        import time
+        config: ConfigGenerator = setup_citizen_sync
+
+        assert loopchain.run(config, rs_target)
+
+        endpoint = utils.normalize_request_url(str(config.rest_port_list), conf.ApiVersion.v3, config.channel_names[0])
+
+        interval_sleep_sec = 1
+        retry_count = 0
+        max_retry = 60
+        is_success = False
+        current_block_height = 0
+
+        while not is_success:
+            if retry_count >= max_retry:
+                raise RuntimeError(f"Failed to BlockSync in retry ({max_retry}) times.\n"
+                                   f"Current Height: {current_block_height}\n")
+
+            last_block = get_block(endpoint=endpoint)
+            current_block_height = last_block.header.height
+
+            if current_block_height >= TestBlockSync.TARGET_HEIGHT:
+                is_success = True
+            else:
+                print("Retry count: ", retry_count)
+                print("Current Height: ", current_block_height)
+                time.sleep(interval_sleep_sec)
+                retry_count += 1

@@ -235,13 +235,23 @@ class PeerService:
             logging.info("Peer Service Ended.")
 
     def cleanup(self):
-        for chan_service in self._channel_services.values():
-            chan_service.stop()
+        print("========Peer cleanup")
+        async def _close():
+            for channel_stub in StubCollection().channel_stubs.values():
+                await channel_stub.async_task().stop("Close")
+        print("=======Peer tries to cleanup Channel")
+        # for chan_service in self._channel_services.values():
+        #     chan_service.stop()
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(_close())
+        print("=======Peer tries to cleanup Channel END")
+
         self._rest_service.stop()
         self.p2p_server_stop()
 
-        loop = asyncio.get_event_loop()
         loop.stop()
+        logging.info("======PeerService.cleanup")
 
     async def serve_channels(self):
         for i, channel_name in enumerate(self._channel_infos):

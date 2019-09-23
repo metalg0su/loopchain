@@ -135,14 +135,17 @@ class ChannelService:
         try:
             loop.run_forever()
         except BaseException as e:
+            print("====BASE EXC ====")
             traceback.print_exception(type(e), e, e.__traceback__)
+            print("====BASE EXC END====")
         finally:
+            print("=====Channel Finally")
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.close()
-            logging.info("Channel Service Ended.")
+            logging.info("=======Channel Service Ended.")
 
     def cleanup(self):
-        logging.info("Cleanup Channel Resources.")
+        logging.info("======Cleanup Channel Resources.")
 
         if self.__block_manager:
             self.__block_manager.stop()

@@ -1,0 +1,53 @@
+@startuml
+participant PeerService as peer
+participant REST as rest
+participant P2P as outer
+
+participant ChannelService as channel
+participant BlockManager as block_manager
+participant Score as score
+participant BroadcastScheduler as broadcaster
+participant Channel_TimerService as channel_timer
+participant ChannelInnerService as channel_inner
+
+
+' Relations
+==Start==
+activate peer
+activate rest
+activate outer
+activate channel
+activate block_manager
+activate score
+activate broadcaster
+activate channel_timer
+activate channel_inner
+
+[-> peer: SIGINT or SIGTERM
+peer ->o channel: send close msg
+channel -> block_manager: stop
+destroy block_manager
+channel -> score: stop
+destroy score
+channel -> broadcaster: stop
+destroy broadcaster
+channel -> channel_timer: stop
+destroy channel_timer
+channel -> channel_inner: stop
+destroy channel_inner
+channel -> channel: channel event loop stop
+destroy block_manager
+channel -->o peer: return msg
+destroy channel
+channel -> channel: channel event loop close
+note right: <- ???
+
+peer -> rest: stop()
+destroy rest
+peer -> outer: stop()
+destroy outer
+
+peer -> peer: peer event loop stop
+destroy peer
+
+@enduml

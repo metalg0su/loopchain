@@ -21,7 +21,6 @@ class Type(IntEnum):
     ServiceType = 0
     Port = 1
     ConfigurationFilePath = 2
-    RadioStationTarget = 3
     Develop = 4
     AgentPin = 5
     Cert = 6
@@ -29,6 +28,8 @@ class Type(IntEnum):
     Channel = 8
     AMQPTarget = 9
     AMQPKey = 10
+    MainNet = 11
+    TestNet = 12
 
 
 class Attribute:
@@ -53,7 +54,8 @@ types_by_names = {
     "service_type": Type.ServiceType,
     "port": Type.Port,
     "configure_file_path": Type.ConfigurationFilePath,
-    "radio_station_target": Type.RadioStationTarget,
+    "mainnet": Type.MainNet,
+    "testnet": Type.TestNet,
     "develop": Type.Develop,
     "agent_pin": Type.AgentPin,
     "cert": Type.Cert,
@@ -68,6 +70,12 @@ attributes = {
         Attribute("service_type", type=str, default='citizen', nargs='?',
                   help="loopchain service to start [peer|citizen|tool|admin]"),
 
+    Type.MainNet:
+        Attribute("--mainnet", action="store_true", help="Connect to mainnet"),
+
+    Type.TestNet:
+        Attribute("--testnet", action="store_true", help="Connect to testnet"),
+
     Type.Port:
         Attribute("-p", "--port",
                   help="port of Service itself"),
@@ -77,12 +85,6 @@ attributes = {
                   help="json configure file path"),
 
     # options for peer
-    # r, rs, radiostation means higher layer node.
-    Type.RadioStationTarget:
-        Attribute("-r", "--radio_station_target",
-                  help="[IP Address of Radio Station]:[PORT number of Radio Station], "
-                       "[IP Address of Sub Radio Station]:[PORT number of Sub Radio Station] "
-                       "or just [IP Address of Radio Station]"),
     Type.Develop:
         Attribute("-d", "--develop", action="store_true",
                   help="set log level to SPAM (low develop mode)"),

@@ -374,7 +374,8 @@ class ChannelService:
                 command_arguments.Type.AMQPKey,
                 command_arguments.Type.Develop,
                 command_arguments.Type.ConfigurationFilePath,
-                command_arguments.Type.RadioStationTarget
+                command_arguments.Type.MainNet,
+                command_arguments.Type.TestNet,
             )
             self.__score_container = CommonSubprocess(process_args)
 

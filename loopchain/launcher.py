@@ -60,11 +60,9 @@ def main(argv):
 
     command_arguments.set_raw_commands(args)
 
-    if args.radio_station_target == 'testnet':
-        args.radio_station_target = conf.URL_CITIZEN_TESTNET
+    if args.testnet:
         args.configure_file_path = conf.CONF_PATH_LOOPCHAIN_TESTNET
-    elif args.radio_station_target == 'mainnet':
-        args.radio_station_target = conf.URL_CITIZEN_MAINNET
+    elif args.mainnet:
         args.configure_file_path = conf.CONF_PATH_LOOPCHAIN_MAINNET
 
     if args.configure_file_path:
@@ -125,9 +123,9 @@ def start_as_rest_server(args):
     api_port = int(args.port) + conf.PORT_DIFF_REST_SERVICE_CONTAINER
     conf_path = conf.CONF_PATH_ICONRPCSERVER_DEV
 
-    if args.radio_station_target == conf.URL_CITIZEN_TESTNET:
+    if args.testnet:
         conf_path = conf.CONF_PATH_ICONRPCSERVER_TESTNET
-    elif args.radio_station_target == conf.URL_CITIZEN_MAINNET:
+    elif args.mainnet:
         conf_path = conf.CONF_PATH_ICONRPCSERVER_MAINNET
 
     additional_conf = {
@@ -156,9 +154,9 @@ def start_as_score(args):
     amqp_key = args.amqp_key or conf.AMQP_KEY
     conf_path = conf.CONF_PATH_ICONSERVICE_DEV
 
-    if args.radio_station_target == conf.URL_CITIZEN_TESTNET:
+    if args.testnet:
         conf_path = conf.CONF_PATH_ICONSERVICE_TESTNET
-    elif args.radio_station_target == conf.URL_CITIZEN_MAINNET:
+    elif args.mainnet:
         conf_path = conf.CONF_PATH_ICONSERVICE_MAINNET
 
     network_type = conf_path.split('/')[-2]

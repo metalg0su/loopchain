@@ -3,13 +3,20 @@ from typing import List
 
 import pytest
 
-from loopchain.baseservice import ObjectManager, BroadcastCommand
+from loopchain import configure_default as conf
+from loopchain.baseservice import ObjectManager, BroadcastCommand, TimerService, Timer
 from loopchain.baseservice.broadcast_scheduler import BroadcastScheduler, BroadcastSchedulerFactory
 from loopchain.baseservice.broadcast_scheduler import _Broadcaster, _BroadcastSchedulerMp, _BroadcastSchedulerThread
+from loopchain.baseservice.tx_item_helper import TxItem
+from loopchain.blockchain.transactions import TransactionVersioner
+from loopchain.protos import loopchain_pb2
+
+CHANNEL_NAME = "icon_dex"
+PEER_TARGET = "peer_target"
 
 
 @pytest.fixture
-def bc():
+def bc() -> _Broadcaster:
     """Init and start _Broadcaster"""
     channel = "chann"
     self_target = "peer_target"
@@ -26,10 +33,8 @@ def bc():
 def bc_scheduler() -> BroadcastScheduler:
     """Init and start BroadcastScheduler."""
 
-    channel_name = "chann"
-    peer_target = "peer_target"
     bc_scheduler = BroadcastSchedulerFactory.new(
-        channel=channel_name, self_target=peer_target, is_multiprocessing=True
+        channel=CHANNEL_NAME, self_target=PEER_TARGET, is_multiprocessing=True
     )
 
     # Make broadcast_queue be public of BroadcastScheduler, so that dealing with it in tests easily.
@@ -57,6 +62,28 @@ class TestBroadcaster:
         for handler_attr in handler_attrs:
             mock_handler = mocker.MagicMock()
             mocker.patch.object(_Broadcaster, handler_attr, mock_handler)
+
+    def test_call_handler_broadcast(self, bc, mocker):
+        method_name = "method_name"
+        method_param = "method_param"
+        method_kwparam = {"retry_times": 10, "timeout": 10}
+        broadcast_param = (method_name, method_param, method_kwparam)
+
+        bc._Broadcaster__broadcast_run = mocker.MagicMock()
+        bc._Broadcaster__handler_broadcast(broadcast_param)
+
+        bc._Broadcaster__broadcast_run.assert_called_with(method_name, method_param, **method_kwparam)
+
+    def test_call_handler_send_to_single_target(self, bc, mocker):
+        method_name = "method_name"
+        method_param = "method_param"
+        target = "target"
+        param = (method_name, method_param, target)
+
+        bc._Broadcaster__call_async_to_target = mocker.MagicMock()
+        bc._Broadcaster__handler_send_to_single_target(param)
+
+        bc._Broadcaster__call_async_to_target.assert_called_with(target, method_name, method_param, True, 0, conf.GRPC_TIMEOUT_BROADCAST_RETRY)
 
     @pytest.mark.parametrize("command, params", [
         (BroadcastCommand.CREATE_TX, ("tx", "tx_versioner")),
@@ -119,6 +146,43 @@ class TestBroadcaster:
             assert removed_audience not in audience_list.keys()
         for updated_audience in new_audience_targets:
             assert updated_audience in audience_list.keys()
+
+    def test_send_tx_in_timer_starts_add_tx_timer(self, bc, tx):
+        channel_name = "icon_dex"
+        tx_versioner = TransactionVersioner()
+
+        tx_param = tx, tx_versioner
+        tx_item = TxItem.create_tx_item(tx_param, channel_name)
+
+        # Raises Exception `Empty` if nothing exists in queue.Queue
+        with pytest.raises(Exception):
+            bc.stored_tx.get(block=False)
+
+        bc._Broadcaster__send_tx_in_timer(tx_item=tx_item)
+        timer_serivce: TimerService = bc._Broadcaster__timer_service
+        timer: Timer = timer_serivce.get_timer(TimerService.TIMER_KEY_ADD_TX)
+        assert bc.stored_tx.get(block=False) == tx_item
+        assert timer.duration == conf.SEND_TX_LIST_DURATION
+
+    def test_make_tx_list_message_if_no_tx_item(self, bc, tx):
+        assert bc.stored_tx.empty()
+        remains, message = bc._Broadcaster__make_tx_list_message()
+
+        assert message.channel == bc._Broadcaster__channel
+        assert not message.tx_list
+
+    def test_make_tx_list_message(self, bc, tx, mocker):
+        channel_name = "icon_dex"
+        tx_versioner = TransactionVersioner()
+
+        tx_param = tx, tx_versioner
+        tx_item = TxItem.create_tx_item(tx_param, channel_name)
+
+        bc.stored_tx.put(tx_item)
+        assert not tx_item >= conf.MAX_TX_SIZE_IN_BLOCK
+
+        mocker.patch.object(loopchain_pb2, "TxSendList")
+        bc._Broadcaster__make_tx_list_message()
 
 
 class TestBroadcastScheduler:

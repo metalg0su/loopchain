@@ -110,7 +110,7 @@ class PeerOuterService(loopchain_pb2_grpc.PeerServiceServicer):
                                      object=tx_list_dumped)
 
     def Request(self, request, context):
-        # utils.logger.debug(f"Peer Service got request({request.code})")
+        utils.logger.debug(f"Peer Service got request({request.code})")
 
         if request.code in self.__handler_map.keys():
             return self.__handler_map[request.code](request, context)

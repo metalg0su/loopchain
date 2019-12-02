@@ -43,6 +43,7 @@ class _KeyValueStoreWriteBatchPlyvel(KeyValueStoreWriteBatch):
     @_validate_args_bytes_without_first
     @_error_convert
     def put(self, key: bytes, value: bytes):
+        print("BATCH put: ", key, value)
         self._batch.put(key, value)
 
     @_validate_args_bytes_without_first
@@ -56,6 +57,7 @@ class _KeyValueStoreWriteBatchPlyvel(KeyValueStoreWriteBatch):
 
     @_error_convert
     def write(self):
+        print("BATCH WRITE!")
         self._batch.write()
 
 

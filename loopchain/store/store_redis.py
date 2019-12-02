@@ -14,14 +14,22 @@ from loopchain.store.key_value_store import (
 
 class KeyValueStoreRedis(KeyValueStore):
     def __init__(self, uri: str, **kwargs):
-        self._path = "localhost"  # TODO: Change to use uri signature
-        self._db: redis.Redis = self._new_db(self._path, **kwargs)
+        # self._path = "localhost"  # TODO: Change to use uri signature
+        self._db: redis.Redis = self._new_db(uri, **kwargs)
 
     def _new_db(self, path, **kwargs) -> redis.Redis:
-        return redis.Redis(host=path, port=6380, **kwargs)
+        port = kwargs["port"]
+        print("CREATE REDIS localhost: ", port)
+        # pool = redis.ConnectionPool(host="localhost", port=port)
+        # return redis.Redis(connection_pool=pool)
+
+        return redis.Redis("localhost", port)
 
     def get(self, key: bytes, *, default=None, **kwargs) -> bytes:
-        return self._db.get(key)
+        result = self._db.get(key)
+        if result is None:
+            raise KeyError(f"Has no value of key({key})")
+        return result
 
     def put(self, key: bytes, value: bytes, *, sync=True, **kwargs):
         self._db.set(key, value, **kwargs)

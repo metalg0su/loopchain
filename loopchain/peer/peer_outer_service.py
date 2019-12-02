@@ -581,13 +581,16 @@ class PeerOuterService(loopchain_pb2_grpc.PeerServiceServicer):
         response_code, block_height, max_block_height, unconfirmed_block_height, confirm_info, block_dumped = \
             future.result()
 
-        return loopchain_pb2.BlockSyncReply(
+        res = loopchain_pb2.BlockSyncReply(
             response_code=response_code,
             block_height=block_height,
             max_block_height=max_block_height,
             confirm_info=confirm_info,
             block=block_dumped,
             unconfirmed_block_height=unconfirmed_block_height)
+        print(">>> ==== RES BLOCKSYNC: ", res)
+
+        return res
 
     def Subscribe(self, request, context):
         """BlockGenerator 가 broadcast(unconfirmed or confirmed block) 하는 채널에

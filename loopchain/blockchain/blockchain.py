@@ -119,7 +119,6 @@ class BlockChain:
         return self._blockchain_store
 
     def close_blockchain_store(self):
-        print(f"close blockchain_store = {self._blockchain_store}")
         if self._blockchain_store:
             self._blockchain_store.close()
             self._blockchain_store: KeyValueStore = None
@@ -228,17 +227,8 @@ class BlockChain:
         hash_encoded = block_hash.hex().encode(encoding='UTF-8')
 
         try:
-            key = BlockChain.CONFIRM_INFO_KEY + hash_encoded
-            result = self._blockchain_store.get(BlockChain.CONFIRM_INFO_KEY + hash_encoded)
-            print("store type!!!: ", self._blockchain_store)
-            print("key!!!: ", key)
-            print("RES!!!: ", result)
-            return bytes(result)
-        except TypeError as e:
-            print("e: ", e)
-            return bytes()
-        except KeyError as e:
-            print("e: ", e)
+            return bytes(self._blockchain_store.get(BlockChain.CONFIRM_INFO_KEY + hash_encoded))
+        except KeyError:
             return bytes()
 
     def find_confirm_info_by_height(self, height) -> bytes:
@@ -354,16 +344,12 @@ class BlockChain:
             block.header.height.to_bytes(conf.BLOCK_HEIGHT_BYTES_LEN, byteorder='big'),
             block_hash_encoded)
 
-        print("in __write_block_data, confirm_info: ", confirm_info)
         if confirm_info:
-            print("confirm_info KEY: ", BlockChain.CONFIRM_INFO_KEY + block_hash_encoded)
-            print("VOTES: ", json.dumps(BlockVotes.serialize_votes(confirm_info)).encode("utf-8"))
             batch.put(
                 BlockChain.CONFIRM_INFO_KEY + block_hash_encoded,
                 json.dumps(BlockVotes.serialize_votes(confirm_info)).encode("utf-8")
             )
 
-        print("in __write_block_data, prev_hash: ", block.header.prev_hash)
         if block.header.prev_hash:
             prev_block_hash_encoded = block.header.prev_hash.hex().encode("utf-8")
             prev_block_confirm_info_key = BlockChain.CONFIRM_INFO_KEY + prev_block_hash_encoded
@@ -602,7 +588,6 @@ class BlockChain:
         try:
             tx_info = self._blockchain_store.get(
                 tx_hash_key.encode(encoding=conf.HASH_KEY_ENCODING))
-            print("TXINFO : ", tx_info)
             tx_info_json = json.loads(tx_info, encoding=conf.PEER_DATA_ENCODING)
 
         except UnicodeDecodeError as e:

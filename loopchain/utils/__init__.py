@@ -476,7 +476,6 @@ def init_default_key_value_store(store_identity) -> Tuple[KeyValueStore, str]:
         os.makedirs(conf.DEFAULT_STORAGE_PATH, exist_ok=True)
 
     store_path = os.path.join(conf.DEFAULT_STORAGE_PATH, 'db_' + store_identity)
-    print("PORTPEER: ", conf.PORT_PEER)
     port = conf.PORT_PEER - 2000
     logger.spam(f"utils:init_default_key_value_store ({store_identity})")
 

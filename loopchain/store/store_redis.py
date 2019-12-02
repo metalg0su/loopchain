@@ -18,12 +18,7 @@ class KeyValueStoreRedis(KeyValueStore):
         self._db: redis.Redis = self._new_db(uri, **kwargs)
 
     def _new_db(self, path, **kwargs) -> redis.Redis:
-        port = kwargs["port"]
-        print("CREATE REDIS localhost: ", port)
-        # pool = redis.ConnectionPool(host="localhost", port=port)
-        # return redis.Redis(connection_pool=pool)
-
-        return redis.Redis("localhost", port)
+        return redis.Redis("localhost", kwargs["port"])
 
     def get(self, key: bytes, *, default=None, **kwargs) -> bytes:
         result = self._db.get(key)
@@ -61,7 +56,6 @@ class _KeyValueStoreWriteBatchRedis(KeyValueStoreWriteBatch):
         return db.pipeline(transaction=False)
 
     def put(self, key: bytes, value: bytes):
-        print("BATCH put: ", key, value)
         self._batch.set(key, value)
 
     def delete(self, key: bytes):
@@ -71,7 +65,6 @@ class _KeyValueStoreWriteBatchRedis(KeyValueStoreWriteBatch):
         self._batch.reset()
 
     def write(self):
-        print("BATCH WRITE!")
         self._batch.execute()
 
 

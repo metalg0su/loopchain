@@ -513,6 +513,7 @@ class ChannelInnerTask:
 
     @message_queue_task
     async def register_citizen(self, peer_id, target, connected_time):
+        util.logger.notice(f"Subscribe Limit: {conf.SUBSCRIBE_LIMIT}")
         register_condition = (len(self._citizens) < conf.SUBSCRIBE_LIMIT
                               and (peer_id not in self._citizens)
                               and not (conf.SAFE_BLOCK_BROADCAST and
@@ -521,8 +522,10 @@ class ChannelInnerTask:
             new_citizen = self._CitizenInfo(peer_id, target, connected_time)
             self._citizens[peer_id] = new_citizen
             logging.info(f"register new citizen: {new_citizen}")
-            logging.debug(f"remaining all citizens: {self._citizens}")
+            # logging.debug(f"remaining all citizens: {self._citizens}")
 
+        util.logger.notice(f"Citizens: {self._citizens}")
+        util.logger.notice(f"> Reg) Number of Citizens: {len(self._citizens)}")
         return register_condition
 
     @message_queue_task
@@ -533,6 +536,8 @@ class ChannelInnerTask:
             logging.debug(f"remaining all citizens: {self._citizens}")
         except KeyError as e:
             logging.warning(f"already unregistered citizen({peer_id})")
+
+        util.logger.notice(f"> UnReg) Number of Citizens: {len(self._citizens)}")
 
     @message_queue_task
     async def wait_for_unregister_signal(self, subscriber_id: str):

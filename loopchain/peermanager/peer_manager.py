@@ -59,9 +59,13 @@ class PeerManager:
                 for peer_id, peer in self._peer_list_data.peer_list.items()]
 
     def load_peers(self) -> None:
-        PeerLoader.load(peer_manager=self)
-        blockchain = ObjectManager().channel_service.block_manager.blockchain
+        reps = PeerLoader.load()
+        util.logger.info(f"Initial Loaded Reps: {reps}")
+        for order, rep_info in enumerate(reps, 1):
+            peer = Peer(rep_info['id'], rep_info['p2pEndpoint'], order=order)
+            self.add_peer(peer)
 
+        blockchain = ObjectManager().channel_service.block_manager.blockchain
         reps_hash = self.reps_hash()
         reps_in_db = blockchain.find_preps_by_roothash(reps_hash)
 

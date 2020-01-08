@@ -156,3 +156,49 @@ class TestTimerService:
 
         timer_service.clean()
         assert not timer_service.timer_list
+
+
+@pytest.mark.asyncio
+class TestTimerServiceRun:
+    @pytest.fixture
+    def mocked_timer_service(self, timer_service, mocker):
+        mock_restart_timer = mocker.MagicMock()
+        mock_stop_timer = mocker.MagicMock()
+        timer_service.restart_timer = mock_restart_timer
+        timer_service.stop_timer = mock_stop_timer
+
+        return timer_service
+
+    async def test_timer_triggered_if_timeout(self, timer_service: TimerService, mocker):
+        timer = Timer()
+        mock_is_timeout = mocker.MagicMock(return_value=True)
+        timer.is_timeout = mock_is_timeout
+
+        mock_run_immediate = mocker.MagicMock()
+        timer_service._TimerService__run_immediate = mock_run_immediate
+        timer_service.add_timer(TIMER_KEY, timer)
+
+        await asyncio.sleep(0.1)
+        assert mock_run_immediate.called
+
+    async def test_repeated_timer_run_again_if_timeout(self, mocked_timer_service: TimerService, mocker):
+        timer = Timer(is_repeat=True)
+        mock_is_timeout = mocker.MagicMock(return_value=True)
+        timer.is_timeout = mock_is_timeout
+
+        mocked_timer_service.add_timer(TIMER_KEY, timer)
+
+        await asyncio.sleep(0.1)
+        assert mocked_timer_service.restart_timer.called
+
+    async def test_not_repeated_timer_stopped_if_timeout(self, mocked_timer_service: TimerService, mocker):
+        burn_out_timer = Timer(is_repeat=False)
+        mock_is_timeout = mocker.MagicMock(return_value=True)
+        burn_out_timer.is_timeout = mock_is_timeout
+
+        mocked_timer_service.add_timer(TIMER_KEY, burn_out_timer)
+
+        await asyncio.sleep(0.1)
+        assert not mocked_timer_service.restart_timer.called
+        assert mocked_timer_service.stop_timer.called
+

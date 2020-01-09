@@ -1,6 +1,7 @@
 """PeerListData Loader for PeerManager"""
 
 import os
+from typing import Tuple
 
 from loopchain import configure as conf
 from loopchain import utils
@@ -16,7 +17,7 @@ class PeerLoader:
         pass
 
     @staticmethod
-    def load():
+    def load() -> Tuple[Hash32, list]:
         peers = PeerLoader._load_peers_from_db()
         if peers:
             utils.logger.info("Reps data loaded from DB")
@@ -43,13 +44,13 @@ class PeerLoader:
         return blockchain.find_preps_by_roothash(rep_root_hash)
 
     @staticmethod
-    def _load_peers_from_file():
+    def _load_peers_from_file() -> list:
         channel_info = utils.load_json_data(conf.CHANNEL_MANAGE_DATA_PATH)
         reps: list = channel_info[ChannelProperty().name].get("peers")
         return [{"id": rep["id"], "p2pEndpoint": rep["peer_target"]} for rep in reps]
 
     @staticmethod
-    def _load_peers_from_rest_call():
+    def _load_peers_from_rest_call() -> list:
         rs_client = ObjectManager().channel_service.rs_client
         crep_root_hash = conf.CHANNEL_OPTION[ChannelProperty().name].get('crep_root_hash')
         reps = rs_client.call(

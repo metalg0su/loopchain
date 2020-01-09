@@ -141,10 +141,10 @@ def patch_for_rest_call(mocker, request):
 
 
 class TestPeerLoader:
-    def _test_load_db(self, result):
+    def _test_load_db(self, reps_hash, result):
         assert result == Params.LOADED_REPS_FROM_DB
 
-    def _test_load_file(self, result):
+    def _test_load_file(self, reps_hash, result):
         assert result == Params.LOADED_REPS_FROM_FILE
 
         with open(Params.FILE_PATH) as f:
@@ -156,7 +156,7 @@ class TestPeerLoader:
             assert actual["id"] == expected["id"]
             assert actual["p2pEndpoint"] == expected["peer_target"]
 
-    def _test_load_rest_call(self, result):
+    def _test_load_rest_call(self, reps_hash, result):
         assert result == Params.LOADED_REPS_FROM_REST
 
         for actual, expected in zip(result, Params.REPS_REST):
@@ -165,16 +165,17 @@ class TestPeerLoader:
 
     def test_load(self, patch_for_db, patch_for_file, patch_for_rest_call):
         loaded_reps = None
+        reps_hash = None
         try:
-            loaded_reps = PeerLoader.load()
+            reps_hash, loaded_reps = PeerLoader.load()
         except Exception as e:
             print(f"Exception: {e}")
 
         if Params.DB_FLAG:
-            self._test_load_db(loaded_reps)
+            self._test_load_db(reps_hash, loaded_reps)
         elif Params.FILE_FLAG:
-            self._test_load_file(loaded_reps)
+            self._test_load_file(reps_hash, loaded_reps)
         elif Params.REST_CALL_FLAG:
-            self._test_load_rest_call(loaded_reps)
+            self._test_load_rest_call(reps_hash, loaded_reps)
         else:
             assert not any([Params.DB_FLAG, Params.FILE_FLAG, Params.REST_CALL_FLAG])

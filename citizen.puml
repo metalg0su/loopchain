@@ -1,0 +1,22 @@
+@startuml
+' Definition
+state "Prepare Connection" as pp
+pp: - Establish connection
+
+state "Handshake" as handshake
+handshake: - Request subscription
+handshake: - Wait for response
+
+state "Run" as run
+run: Wait for `node_ws` signals
+
+state "Exception" as exc
+
+' Relations
+[*] --> pp
+pp --> handshake
+handshake --> run
+
+run -> exc
+exc -> [*]
+@enduml

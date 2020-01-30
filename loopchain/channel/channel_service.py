@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import asyncio
-import json
 import logging
 import signal
 import traceback
@@ -24,8 +23,7 @@ from loopchain import configure as conf
 from loopchain import utils
 from loopchain.baseservice import (BroadcastScheduler, BroadcastSchedulerFactory, ObjectManager, CommonSubprocess,
                                    RestClient, NodeSubscriber, UnregisteredException, TimerService)
-from loopchain.blockchain.blocks import Block
-from loopchain.blockchain.exception import AnnounceNewBlockError, WritePrecommitStateError
+from loopchain.blockchain.exception import AnnounceNewBlockError
 from loopchain.blockchain.types import ExternalAddress, TransactionStatusInQueue
 from loopchain.blockchain.types import Hash32
 from loopchain.channel.channel_inner_service import ChannelInnerService
@@ -36,7 +34,6 @@ from loopchain.peer import BlockManager
 from loopchain.protos import loopchain_pb2
 from loopchain.store.key_value_store import KeyValueStoreError
 from loopchain.utils import loggers, command_arguments
-from loopchain.utils.icon_service import convert_params, ParamType
 from loopchain.utils.message_queue import StubCollection
 
 

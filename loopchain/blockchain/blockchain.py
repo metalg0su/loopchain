@@ -609,7 +609,7 @@ class BlockChain:
 
             try:
                 if need_to_score_invoke:
-                    channel_service.score_write_precommit_state(block)
+                    self.score_write_precommit_state(block)
             except Exception as e:
                 utils.exit_and_msg(f"score_write_precommit_state FAIL {e}")
 
@@ -644,6 +644,31 @@ class BlockChain:
                 channel_service.switch_role()
 
             return True
+
+    def score_write_precommit_state(self, block: Block):
+        logging.debug(f"call score commit {ChannelProperty().name} {block.header.height} {block.header.hash.hex()}")
+
+        new_block_hash = block.header.hash
+        try:
+            old_block_hash = self.__block_manager.get_old_block_hash(block.header.height, new_block_hash)
+        except KeyError:
+            old_block_hash = new_block_hash
+
+        logging.debug(f"Block Hash : {old_block_hash} -> {new_block_hash}")
+        request = {
+            "blockHeight": block.header.height,
+            "oldBlockHash": old_block_hash.hex(),
+            "newBlockHash": new_block_hash.hex()
+        }
+        request = convert_params(request, ParamType.write_precommit_state)
+
+        stub = StubCollection().icon_score_stubs[ChannelProperty().name]
+        precommit_result: dict = stub.sync_task().write_precommit_state(request)
+        if "error" in precommit_result:
+            raise WritePrecommitStateError(precommit_result['error'])
+
+        self.__block_manager.pop_old_block_hashes(block.header.height)
+        return True
 
     def _write_tx(self, block, receipts, batch=None):
         """save additional information of transactions to efficient searching and support user APIs.
@@ -779,7 +804,7 @@ class BlockChain:
 
                 self._write_tx(invoke_block, receipts)
                 try:
-                    ObjectManager().channel_service.score_write_precommit_state(invoke_block)
+                    self.score_write_precommit_state(invoke_block)
                 except Exception as e:
                     utils.exit_and_msg(f"Fail to write precommit in the score.: {e}")
 

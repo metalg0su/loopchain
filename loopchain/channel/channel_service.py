@@ -492,31 +492,6 @@ class ChannelService:
         self.__block_manager.set_peer_type(peer_type)
         self.turn_on_leader_complain_timer()
 
-    def score_write_precommit_state(self, block: Block):
-        logging.debug(f"call score commit {ChannelProperty().name} {block.header.height} {block.header.hash.hex()}")
-
-        new_block_hash = block.header.hash
-        try:
-            old_block_hash = self.__block_manager.get_old_block_hash(block.header.height, new_block_hash)
-        except KeyError:
-            old_block_hash = new_block_hash
-
-        logging.debug(f"Block Hash : {old_block_hash} -> {new_block_hash}")
-        request = {
-            "blockHeight": block.header.height,
-            "oldBlockHash": old_block_hash.hex(),
-            "newBlockHash": new_block_hash.hex()
-        }
-        request = convert_params(request, ParamType.write_precommit_state)
-
-        stub = StubCollection().icon_score_stubs[ChannelProperty().name]
-        precommit_result: dict = stub.sync_task().write_precommit_state(request)
-        if "error" in precommit_result:
-            raise WritePrecommitStateError(precommit_result['error'])
-
-        self.__block_manager.pop_old_block_hashes(block.header.height)
-        return True
-
     def callback_leader_complain_timeout(self):
         if self.state_machine.state == "BlockGenerate":
             _, new_leader_id = self.block_manager.get_leader_ids_for_complaint()

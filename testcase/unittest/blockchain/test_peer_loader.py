@@ -9,7 +9,7 @@ from loopchain.blockchain.blockchain import BlockChain
 from loopchain.channel.channel_property import ChannelProperty
 from loopchain.channel.channel_service import ChannelService
 from loopchain.peer.block_manager import BlockManager
-from loopchain.peermanager.peer_loader import PeerLoader
+from loopchain.blockchain.peer_loader import PeerLoader
 
 
 class Params:

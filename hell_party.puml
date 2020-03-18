@@ -1,0 +1,94 @@
+@startuml
+title "의존 관계"
+
+' ==============검사 완료
+class "ChannelProperty" as channel_property
+class "ChannelStateMachine" as channel_state_machine
+class "BroadCastScheduler" as bc_scheduler
+class "ObjectManager" as obj_manager
+class "ChannelInnerService" as channel_inner_service
+class "TimerService" as timer_service
+class "BlockManager" as block_manager
+
+class "NodeSubscriber" as node_subscriber
+class "PeerLoader" as peer_loader
+class "RestClient" as rs_client
+class "Epoch" as epoch
+class "Siever" as siever
+class "ChannelService" as channel_service
+class "SlotTimer" as slot_timer
+class "PeerService" as peer_service
+class "PeerInnerService" as peer_inner_service
+class "PeerOuterService" as peer_outer_service
+
+' =============미검사
+class "BlockChain" as blockchain
+
+' ChannelService...
+channel_service --> block_manager
+channel_service --> node_subscriber
+channel_service --> bc_scheduler
+channel_service --> channel_state_machine
+channel_service --> channel_property
+channel_service --> timer_service
+channel_service --> rs_client
+
+channel_service --> channel_inner_service
+
+' 검사 완료
+obj_manager --> channel_service
+obj_manager --> peer_service
+' TODO: ObjectManager.rest_proxy_service 안쓰네
+
+' PeerLoader가 사용하는
+peer_loader --> channel_property
+peer_loader --> obj_manager: (rs_client)
+peer_loader --> obj_manager: (blockchain)
+
+channel_inner_service --> bc_scheduler
+
+' BlockManager가 사용하는
+block_manager --> siever
+block_manager --> epoch
+block_manager --> channel_service
+
+blockchain --> peer_loader
+
+' stub_collection 사용하는 자들 - MQ 프로세스 통신이라 숨겨둠
+'class "StubCollection" as stub_collection
+'blockchain --> stub_collection
+'channel_inner_service --> stub_collection
+'channel_service --> stub_collection
+'block_manager --> stub_collection
+'peer_outer_service -> stub_collection
+'peer_service -> stub_collection
+
+' channel_property 사용하는 자들
+bc_scheduler --> channel_property
+node_subscriber --> channel_property
+blockchain --> channel_property
+epoch --> channel_property
+channel_inner_service --> channel_property
+block_manager --> channel_property
+siever --> channel_property
+
+' timer_service 사용하는 자들
+bc_scheduler --> timer_service
+node_subscriber --> timer_service
+slot_timer --> timer_service
+channel_service --> timer_service
+block_manager --> timer_service
+
+siever --> timer_service
+siever --> slot_timer
+
+peer_service --> peer_inner_service
+peer_service --> peer_outer_service
+
+blockchain --> block_manager
+epoch --> block_manager
+siever --> block_manager
+
+block_manager --> blockchain
+siever --> blockchain
+@enduml

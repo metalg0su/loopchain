@@ -76,7 +76,7 @@ class RestClient:
         return f"{urlparse(normalized_target).scheme}://{urlparse(normalized_target).netloc}"
 
     @property
-    def target(self):
+    def target(self) -> str:
         return self._target
 
     async def _fetch_status(self, endpoint: str):

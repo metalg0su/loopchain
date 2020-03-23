@@ -5,7 +5,7 @@ import threading
 import traceback
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import TYPE_CHECKING, Dict, DefaultDict, Optional, Tuple, List, cast
+from typing import TYPE_CHECKING, Dict, DefaultDict, Optional, Tuple, List, cast, Union
 
 from pkg_resources import parse_version
 
@@ -37,6 +37,7 @@ from loopchain.store.key_value_store import KeyValueStore
 from loopchain.tools.grpc_helper import GRPCHelper
 from loopchain.utils.icon_service import convert_params, ParamType, response_to_json_query
 from loopchain.utils.message_queue import StubCollection
+from loopchain.baseservice.rest_client import RestClient
 
 if TYPE_CHECKING:
     from loopchain.channel.channel_service import ChannelService
@@ -128,7 +129,7 @@ class BlockManager:
         """broadcast unconfirmed block for getting votes form reps
         """
         last_block: Block = self.blockchain.last_block
-        if (self.__channel_service.state_machine.state != "BlockGenerate" and 
+        if (self.__channel_service.state_machine.state != "BlockGenerate" and
                 last_block.header.height > block_.header.height):
             util.logger.debug(
                 f"Last block has reached a sufficient height. Broadcast will stop! ({block_.header.hash.hex()})")
@@ -374,7 +375,8 @@ class BlockManager:
 
             return need_to_sync, self.__block_height_future
 
-    def __block_request(self, peer_stub, block_height):
+    def __block_request(self, peer_stub: Union[RestClient, loopchain_pb2_grpc.PeerServiceStub], block_height)\
+            -> Tuple[Block, int, int, List[Vote], message_code.Response]:
         """request block by gRPC or REST
 
         :param peer_stub:
@@ -387,7 +389,8 @@ class BlockManager:
             # request REST(json-rpc) way to RS peer
             return self.__block_request_by_citizen(block_height)
 
-    def __block_request_by_voter(self, block_height, peer_stub):
+    def __block_request_by_voter(self, block_height, peer_stub: loopchain_pb2_grpc.PeerServiceStub) \
+            -> Tuple[Block, int, int, List[Vote], message_code.Response]:
         response = peer_stub.BlockSync(loopchain_pb2.BlockSyncRequest(
             block_height=block_height,
             channel=self.__channel_name
@@ -412,7 +415,8 @@ class BlockManager:
 
         return block, response.max_block_height, response.unconfirmed_block_height, votes, response.response_code
 
-    def __block_request_by_citizen(self, block_height):
+    def __block_request_by_citizen(self, block_height: RestClient)\
+            -> Tuple[Block, int, -1, List[Vote], message_code.Response]:
         rs_client = ObjectManager().channel_service.rs_client
         get_block_result = rs_client.call(
             RestMethod.GetBlockByHeight,
@@ -531,7 +535,7 @@ class BlockManager:
                                       reps_getter=reps_getter)
         return self.blockchain.add_block(prev_block, confirm_info)
 
-    def __block_request_to_peers_in_sync(self, peer_stubs, my_height, unconfirmed_block_height, max_height):
+    def __block_request_to_peers_in_sync(self, peer_stubs: List[Tuple[str, Union[RestClient, loopchain_pb2_grpc.PeerServiceStub]]], my_height, unconfirmed_block_height, max_height):
         """Extracted func from __block_height_sync.
         It has block request loop with peer_stubs for block height sync.
 
@@ -547,6 +551,9 @@ class BlockManager:
             if self.__channel_service.state_machine.state != 'BlockSync':
                 break
 
+            # PEP-526
+            peer_target: str
+            peer_stub: Union[RestClient, loopchain_pb2_grpc.PeerServiceStub]
             peer_target, peer_stub = peer_stubs[peer_index]
             util.logger.info(f"Block Height Sync Target : {peer_target} / request height({my_height + 1})")
             try:
@@ -699,7 +706,7 @@ class BlockManager:
         else:
             return block.header.next_leader.hex_hx()
 
-    def __get_peer_stub_list(self) -> Tuple[int, int, List[Tuple]]:
+    def __get_peer_stub_list(self) -> Tuple[int, int, List[Tuple[RestClient.target, Union[RestClient, loopchain_pb2_grpc.PeerServiceStub]]]]:
         """It updates peer list for block manager refer to peer list on the loopchain network.
         This peer list is not same to the peer list of the loopchain network.
 
@@ -709,7 +716,7 @@ class BlockManager:
         """
         max_height = -1      # current max height
         unconfirmed_block_height = -1
-        peer_stubs = []     # peer stub list for block height synchronization
+        peer_stubs: List[Tuple[RestClient.target, RestClient]] = []     # peer stub list for block height synchronization
 
         if not ObjectManager().channel_service.is_support_node_function(conf.NodeFunction.Vote):
             rs_client = ObjectManager().channel_service.rs_client

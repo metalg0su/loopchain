@@ -128,7 +128,7 @@ class BlockManager:
         """broadcast unconfirmed block for getting votes form reps
         """
         last_block: Block = self.blockchain.last_block
-        if (self.__channel_service.state_machine.state != "BlockGenerate" and 
+        if (self.__channel_service.state_machine.state != "BlockGenerate" and
                 last_block.header.height > block_.header.height):
             util.logger.debug(
                 f"Last block has reached a sufficient height. Broadcast will stop! ({block_.header.hash.hex()})")
@@ -707,16 +707,25 @@ class BlockManager:
         :return unconfirmed_block_height: unconfirmed_block_height on the network
         :return peer_stubs: current peer list on the network (target, peer_stub)
         """
-        max_height = -1      # current max height
+        if not ObjectManager().channel_service.is_support_node_function(conf.NodeFunction.Vote):
+            return self._get_peer_stub_list_as_citizen()
+        else:
+            return self._get_peer_stub_list_as_validator()
+
+    def _get_peer_stub_list_as_citizen(self) -> Tuple[int, int, List[Tuple]]:
         unconfirmed_block_height = -1
         peer_stubs = []     # peer stub list for block height synchronization
 
-        if not ObjectManager().channel_service.is_support_node_function(conf.NodeFunction.Vote):
-            rs_client = ObjectManager().channel_service.rs_client
-            status_response = rs_client.call(RestMethod.Status)
-            max_height = status_response['block_height']
-            peer_stubs.append((rs_client.target, rs_client))
-            return max_height, unconfirmed_block_height, peer_stubs
+        rs_client = ObjectManager().channel_service.rs_client
+        status_response = rs_client.call(RestMethod.Status)
+        max_height = status_response['block_height']
+        peer_stubs.append((rs_client.target, rs_client))
+        return max_height, unconfirmed_block_height, peer_stubs
+
+    def _get_peer_stub_list_as_validator(self) -> Tuple[int, int, List[Tuple]]:
+        max_height = -1      # current max height
+        unconfirmed_block_height = -1
+        peer_stubs = []     # peer stub list for block height synchronization
 
         # Make Peer Stub List [peer_stub, ...] and get max_height of network
         self.__block_height_sync_bad_targets = {k: v for k, v in self.__block_height_sync_bad_targets.items()

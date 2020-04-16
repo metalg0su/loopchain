@@ -64,7 +64,7 @@ class BlockFactory(DataFactory):
         block_builder.signer = self._signer
 
         block_builder.validators_hash = invoke_data.validators_hash
-        block_builder.next_validators = [ExternalAddress.fromhex(next_validator_info["id"])
+        block_builder.next_validators = [ExternalAddress.fromhex(next_validator_info["id"], ignore_prefix=True)
                                          for next_validator_info in invoke_data.next_validators]
 
         block_builder.epoch = epoch_num
@@ -132,4 +132,4 @@ class BlockFactory(DataFactory):
         pass
 
     async def create_data_verifier(self) -> BlockVerifier:
-        return BlockVerifier(invoke_pool=self._invoke_pool)
+        return BlockVerifier(tx_versioner=self._tx_versioner, invoke_pool=self._invoke_pool)

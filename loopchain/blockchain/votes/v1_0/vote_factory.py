@@ -10,27 +10,35 @@ from .vote import BlockVote
 hash_generator = build_hash_generator(1, "icx_vote")
 
 
+def get_signature(signer,
+                  voter_id,
+                  commit_id,
+                  data_id,
+                  epoch_num,
+                  state_hash,
+                  receipt_hash,
+                  round_num,
+                  timestamp) -> Signature:
+    origin_data = {
+        "validator": voter_id.hex_hx(),
+        "timestamp": hex(timestamp),
+        "blockHash": Hash32(data_id),
+        "commitHash": Hash32(commit_id),
+        "stateHash": state_hash,
+        "receiptHash": receipt_hash,
+        "epoch": epoch_num,
+        "round": round_num
+    }
+    hash_ = Hash32(hash_generator.generate_hash(origin_data))
+
+    return Signature(signer.sign_hash(hash_))
+
+
 class BlockVoteFactory(VoteFactory):
     def __init__(self, invoke_result_pool: InvokePool, signer):
         self._invoke_result_pool: InvokePool = invoke_result_pool
         self._signer: Signer = signer
         self._voter_id = ExternalAddress.fromhex(self._signer.address)
-
-    def _get_signature(self, voter_id, commit_id, data_id,
-                       epoch_num, state_hash, receipt_hash, round_num, timestamp) -> Signature:
-        origin_data = {
-            "validator": voter_id.hex_hx(),
-            "timestamp": hex(timestamp),
-            "blockHash": Hash32(data_id),
-            "commitHash": Hash32(commit_id),
-            "stateHash": state_hash,
-            "receiptHash": receipt_hash,
-            "epoch": epoch_num,
-            "round": round_num
-        }
-        hash_ = Hash32(hash_generator.generate_hash(origin_data))
-
-        return Signature(self._signer.sign_hash(hash_))
 
     async def create_vote(self, data_id: bytes, commit_id: bytes, epoch_num: int, round_num: int) -> BlockVote:
         data_id: Hash32
@@ -38,7 +46,8 @@ class BlockVoteFactory(VoteFactory):
         invoke_data: InvokeData = self._invoke_result_pool.get_invoke_data(epoch_num, round_num)
 
         timestamp = util.get_time_stamp()
-        signature = self._get_signature(
+        signature = get_signature(
+            signer=self._signer,
             voter_id=self._voter_id,
             commit_id=commit_id,
             data_id=data_id,
@@ -65,7 +74,8 @@ class BlockVoteFactory(VoteFactory):
 
     def create_none_vote(self, epoch_num: int, round_num: int) -> BlockVote:
         timestamp = util.get_time_stamp()
-        signature = self._get_signature(
+        signature = get_signature(
+            signer=self._signer,
             voter_id=self._voter_id,
             commit_id=BlockVote.NoneVote,
             data_id=BlockVote.NoneVote,
@@ -90,7 +100,8 @@ class BlockVoteFactory(VoteFactory):
 
     def create_lazy_vote(self, voter_id: bytes, epoch_num: int, round_num: int) -> BlockVote:
         timestamp = util.get_time_stamp()
-        signature = self._get_signature(
+        signature = get_signature(
+            signer=self._signer,
             voter_id=self._voter_id,
             commit_id=BlockVote.NoneVote,
             data_id=BlockVote.NoneVote,

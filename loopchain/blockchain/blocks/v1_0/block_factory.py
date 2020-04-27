@@ -132,4 +132,4 @@ class BlockFactory(DataFactory):
         pass
 
     async def create_data_verifier(self) -> BlockVerifier:
-        return BlockVerifier()
+        return BlockVerifier(invoke_pool=self._invoke_pool)

@@ -110,6 +110,11 @@ class TestStubManager:
         for _ in range(5):
             assert stub.target == f"127.0.0.1:{client_port}"
 
+    def test_make_stub_delays_if_no_response(self, create_grpc_stub):
+        for _ in range(5):
+            stub: StubManager = create_grpc_stub(9000)
+            stub.bc_run()
+
 
 @pytest.mark.slow
 class TestRunServerEverytime:

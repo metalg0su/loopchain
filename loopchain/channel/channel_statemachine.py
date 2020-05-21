@@ -153,6 +153,7 @@ class ChannelStateMachine(object):
 
     def _blocksync_on_enter(self, *args, **kwargs):
         self.__channel_service.service_status = status_code.Service.block_height_sync
+        self.__channel_service.stop_leader_complain_timer()
 
     def _blocksync_on_exit(self, *args, **kwargs):
         self.__channel_service.update_nid()

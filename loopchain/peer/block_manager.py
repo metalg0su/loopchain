@@ -22,6 +22,7 @@ from loopchain.blockchain.exception import (ConfirmInfoInvalid, ConfirmInfoInval
                                             NotReadyToConfirmInfo, UnrecordedBlock, UnexpectedLeader)
 from loopchain.blockchain.exception import ConfirmInfoInvalidNeedBlockSync, TransactionDuplicatedHashError
 from loopchain.blockchain.exception import InvalidUnconfirmedBlock, DuplicationUnconfirmedBlock, ScoreInvokeError
+from loopchain.blockchain.next_rep_getter import RepGetter
 from loopchain.blockchain.transactions import Transaction, TransactionSerializer, v2, v3
 from loopchain.blockchain.types import ExternalAddress
 from loopchain.blockchain.types import TransactionStatusInQueue, Hash32
@@ -788,7 +789,7 @@ class BlockManager:
         elif self.blockchain.made_block_count_reached_max(block):
             reps_hash = block.header.revealed_next_reps_hash or ChannelProperty().crep_root_hash
             reps = self.blockchain.find_preps_addresses_by_roothash(reps_hash)
-            next_leader = self.blockchain.get_next_rep_string_in_reps(block.header.peer_id, reps)
+            next_leader = RepGetter.get_next_rep_string_in_reps(block.header.peer_id, reps)
 
             if next_leader is None:
                 next_leader = self.__get_next_leader_by_block(block)
@@ -834,7 +835,7 @@ class BlockManager:
         my_height = self.blockchain.block_height
 
         if self.blockchain.last_block:
-            reps_hash = self.blockchain.get_reps_hash_by_header(self.blockchain.last_block.header)
+            reps_hash = RepGetter.get_reps_hash_by_header(self.blockchain.last_block.header)
         else:
             reps_hash = ChannelProperty().crep_root_hash
         rep_targets = self.blockchain.find_preps_targets_by_roothash(reps_hash)
@@ -944,7 +945,7 @@ class BlockManager:
         """
         complained_leader_id = self.epoch.leader_id
 
-        new_leader = self.blockchain.get_next_rep_in_reps(
+        new_leader = RepGetter.get_next_rep_in_reps(
             ExternalAddress.fromhex(complained_leader_id), self.epoch.reps)
         new_leader_id = new_leader.hex_hx() if new_leader else None
 
@@ -983,7 +984,7 @@ class BlockManager:
             f"complained_leader_id({complained_leader_id}), "
             f"new_leader_id({new_leader_id})")
 
-        reps_hash = self.blockchain.get_next_reps_hash_by_header(self.blockchain.last_block.header)
+        reps_hash = RepGetter.get_next_reps_hash_by_header(self.blockchain.last_block.header)
         self.__channel_service.broadcast_scheduler.schedule_broadcast("ComplainLeader",
                                                                       request,
                                                                       reps_hash=reps_hash)

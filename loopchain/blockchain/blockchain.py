@@ -32,6 +32,7 @@ from loopchain.blockchain.votes import Votes
 from loopchain.blockchain.votes.v0_1a import BlockVotes
 from loopchain.channel.channel_property import ChannelProperty
 from loopchain.configure_default import NodeType
+from loopchain.blockchain.next_rep_getter import RepGetter
 from loopchain.store.key_value_store import KeyValueStore, KeyValueStoreWriteBatch
 from loopchain.utils.icon_service import convert_params, ParamType, response_to_json_query
 from loopchain.utils.message_queue import StubCollection
@@ -165,26 +166,6 @@ class BlockChain:
             f"{self.find_preps_ids_by_roothash(block.header.revealed_next_reps_hash)[0]}")
         return self.find_preps_ids_by_roothash(block.header.revealed_next_reps_hash)[0]
 
-    @staticmethod
-    def get_next_rep_in_reps(rep, reps: Sequence[ExternalAddress]):
-        try:
-            return reps[reps.index(rep) + 1]
-        except IndexError:
-            return reps[0]
-        except ValueError:
-            utils.logger.debug(f"rep({rep}) not in reps({[str(rep) for rep in reps]})")
-            return None
-
-    @staticmethod
-    def get_next_rep_string_in_reps(rep, reps: Sequence[ExternalAddress]) -> Optional[str]:
-        try:
-            return reps[reps.index(rep) + 1].hex_hx()
-        except IndexError:
-            return reps[0].hex_hx()
-        except ValueError:
-            utils.logger.debug(f"rep({rep}) not in reps({[str(rep) for rep in reps]})")
-            return None
-
     def get_expected_generator(self, new_block: Block) -> Optional[ExternalAddress]:
         """get expected generator to vote unconfirmed block
 
@@ -197,7 +178,7 @@ class BlockChain:
                 f"get_expected_generator made_block_count reached!({self.__made_block_counter})")
             reps: Sequence[ExternalAddress] = \
                 self.find_preps_addresses_by_roothash(self.__last_block.header.revealed_next_reps_hash)
-            expected_generator = self.get_next_rep_in_reps(peer_id, reps)
+            expected_generator = RepGetter.get_next_rep_in_reps(peer_id, reps)
         else:
             expected_generator = peer_id
 
@@ -505,32 +486,11 @@ class BlockChain:
         self.find_preps_addresses_by_roothash.cache_clear()
         self.find_preps_targets_by_roothash.cache_clear()
 
-    @staticmethod
-    def get_reps_hash_by_header(header: BlockHeader) -> Hash32:
-        try:
-            roothash = header.reps_hash
-            if not roothash:
-                raise AttributeError
-        except AttributeError:
-            roothash = ChannelProperty().crep_root_hash
-        return roothash
-
-    @staticmethod
-    def get_next_reps_hash_by_header(header: BlockHeader) -> Hash32:
-        try:
-            roothash = header.revealed_next_reps_hash
-            if not roothash:
-                raise AttributeError
-        except AttributeError:
-            # TODO: Re-locate roothash under BlockHeader or somewhere, without use ObjectManager
-            roothash = ChannelProperty().crep_root_hash
-        return roothash
-
     def find_preps_ids_by_header(self, header: BlockHeader) -> Sequence[str]:
-        return self.find_preps_ids_by_roothash(self.get_reps_hash_by_header(header))
+        return self.find_preps_ids_by_roothash(RepGetter.get_reps_hash_by_header(header))
 
     def find_preps_addresses_by_header(self, header: BlockHeader) -> Sequence[ExternalAddress]:
-        return self.find_preps_addresses_by_roothash(self.get_reps_hash_by_header(header))
+        return self.find_preps_addresses_by_roothash(RepGetter.get_reps_hash_by_header(header))
 
     def find_preps_by_roothash(self, roothash: Hash32) -> list:
         try:

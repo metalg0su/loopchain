@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from loopchain.baseservice.aging_cache import AgingCache
     from loopchain.channel.channel_service import ChannelService
     from lft.event import EventSystem
+    from loopchain.blockchain.blockchain import MadeBlockCounter
 
 
 class ChannelTxCreatorInnerTask:
@@ -556,8 +557,9 @@ class ChannelInnerTask:
     @message_queue_task(priority=255)
     async def get_status(self):
         status_data = dict()
-        status_data["made_block_count"] = self._blockchain.my_made_block_count
-        status_data["leader_made_block_count"] = self._blockchain.leader_made_block_count
+        block_counter: "MadeBlockCounter" = self._blockchain.made_block_counter
+        status_data["made_block_count"] = block_counter.my_made_block_count()
+        status_data["leader_made_block_count"] = -1
 
         block_height = 0
         unconfirmed_block_height = None
@@ -568,6 +570,7 @@ class ChannelInnerTask:
         if last_block:
             block_height = last_block.header.height
             peer_count = len(self._blockchain.find_preps_addresses_by_header(last_block.header))
+            status_data["leader_made_block_count"] = [last_block.header.peer_id]
 
         if last_unconfirmed_block:
             unconfirmed_block_height = last_unconfirmed_block.header.height

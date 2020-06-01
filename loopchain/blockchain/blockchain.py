@@ -53,6 +53,27 @@ class MadeBlockCounter(Counter):
     def __str__(self):
         return linesep.join(f"{k}: {v}" for k, v in self.items())
 
+    def my_made_block_count(self) -> int:
+        return self[ChannelProperty().peer_address]
+
+    def is_max_count(self, block: Block, count: int = conf.MAX_MADE_BLOCK_COUNT) -> bool:
+        return self[block.header.peer_id] == (count - 1)
+
+    def increase_made_block_count(self, block: Block, last_block: Block) -> None:
+        """This is must called before changing self.__last_block!
+
+        :param block:
+        :return:
+        """
+        if block.header.height == 0:
+            return
+
+        if (last_block.header.peer_id != block.header.peer_id or
+                last_block.header.prep_changed_reason is NextRepsChangeReason.TermEnd):
+            self[block.header.peer_id] = 1
+        else:
+            self[block.header.peer_id] += 1
+
 
 class BlockChain:
     """Block chain with only committed blocks."""
@@ -105,32 +126,8 @@ class BlockChain:
         self._init_blockchain()
 
     @property
-    def leader_made_block_count(self) -> int:
-        if self.__last_block:
-            return self.__made_block_counter[self.__last_block.header.peer_id]
-        return -1
-
-    @property
-    def my_made_block_count(self) -> int:
-        return self.__made_block_counter[ChannelProperty().peer_address]
-
-    def made_block_count_reached_max(self, block: Block) -> bool:
-        return self.__made_block_counter[block.header.peer_id] == (conf.MAX_MADE_BLOCK_COUNT - 1)
-
-    def _increase_made_block_count(self, block: Block) -> None:
-        """This is must called before changing self.__last_block!
-
-        :param block:
-        :return:
-        """
-        if block.header.height == 0:
-            return
-
-        if (self.__last_block.header.peer_id != block.header.peer_id or
-                self.__last_block.header.prep_changed_reason is NextRepsChangeReason.TermEnd):
-            self.__made_block_counter[block.header.peer_id] = 1
-        else:
-            self.__made_block_counter[block.header.peer_id] += 1
+    def made_block_counter(self) -> MadeBlockCounter:
+        return self.__made_block_counter
 
     def _keep_order_in_penalty(self) -> bool:
         keep_order = (self.last_block and
@@ -305,7 +302,7 @@ class BlockChain:
             if self.__last_block.header.peer_id != block.header.peer_id:
                 break
 
-            self._increase_made_block_count(block)
+            self.__made_block_counter.increase_made_block_count(block, self.__last_block)
 
             # next loop
             block_height = block.header.height - 1
@@ -565,7 +562,7 @@ class BlockChain:
                 utils.exit_and_msg(f"score_write_precommit_state FAIL {e}")
 
             self.__invoke_results.pop(block.header.hash, None)
-            self._increase_made_block_count(block)  # must do this before self.__last_block = block
+            self.__made_block_counter.increase_made_block_count(block, self.__last_block)  # must do this before self.__last_block = block
             self.__last_block = block
             self.__total_tx = next_total_tx
             self.__block_manager.new_epoch()
@@ -1160,7 +1157,7 @@ class BlockChain:
 
             next_leader = None  # to rebuild next_leader
             block_builder.next_reps_change_reason = change_reason
-            block_builder.is_max_made_block_count = self.made_block_count_reached_max(_block)
+            block_builder.is_max_made_block_count = self.__made_block_counter.is_max_count(_block)
             utils.logger.debug(f"_process_next_prep() change_reason = {block_builder.next_reps_change_reason},"
                                f" is_max_mbc = {block_builder.is_max_made_block_count}")
 

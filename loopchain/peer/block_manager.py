@@ -786,7 +786,7 @@ class BlockManager:
 
         if block.header.prep_changed_reason is NextRepsChangeReason.TermEnd:
             next_leader = self.blockchain.get_first_leader_of_next_reps(block)
-        elif self.blockchain.made_block_count_reached_max(block):
+        elif self.blockchain.made_block_counter.is_max_count(block):
             reps_hash = block.header.revealed_next_reps_hash or ChannelProperty().crep_root_hash
             reps = self.blockchain.find_preps_addresses_by_roothash(reps_hash)
             next_leader = RepGetter.get_next_rep_string_in_reps(block.header.peer_id, reps)

@@ -173,6 +173,7 @@ class ConsensusSiever(ConsensusBase):
             block_builder = self._blockchain.makeup_block(
                 complain_votes, last_block_vote_list, new_term, skip_add_tx)
             need_next_call = False
+            block_counter = self._blockchain.made_block_counter
             try:
                 if complained_result or new_term:
                     util.logger.spam("consensus block_builder.complained or new term")
@@ -185,7 +186,7 @@ class ConsensusSiever(ConsensusBase):
                     block_builder = self._makeup_new_block(block_builder.version,
                                                            complain_votes,
                                                            self._blockchain.last_block.header.hash)
-                elif self._blockchain.my_made_block_count == (conf.MAX_MADE_BLOCK_COUNT - 2):
+                elif block_counter.my_made_block_count() == (conf.MAX_MADE_BLOCK_COUNT - 2):
                     # (conf.MAX_MADE_BLOCK_COUNT - 2) means if made_block_count is 8,
                     # but after __add_block, it becomes 9
                     # so next unconfirmed block height is 10 (last).
@@ -193,7 +194,7 @@ class ConsensusSiever(ConsensusBase):
                         await self.__add_block(last_unconfirmed_block)
                     else:
                         util.logger.info(f"This leader already made "
-                                         f"{self._blockchain.my_made_block_count} blocks. "
+                                         f"{block_counter.my_made_block_count} blocks. "
                                          f"MAX_MADE_BLOCK_COUNT is {conf.MAX_MADE_BLOCK_COUNT} "
                                          f"There is no more right. Consensus loop will return.")
                         return
@@ -235,7 +236,7 @@ class ConsensusSiever(ConsensusBase):
                     return
 
             if not candidate_block.header.prep_changed:
-                if (self._blockchain.made_block_count_reached_max(self._blockchain.last_block) or
+                if (self._blockchain.made_block_counter.is_max_count(self._blockchain.last_block) or
                         self._block_manager.epoch.leader_id != ChannelProperty().peer_id):
                     ObjectManager().channel_service.reset_leader(self._block_manager.epoch.leader_id)
 

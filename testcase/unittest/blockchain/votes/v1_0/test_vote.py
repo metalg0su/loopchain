@@ -56,3 +56,32 @@ class TestVote_v1_0:
         assert isinstance(vote.consensus_id, Hash32)
         assert vote.consensus_id == expected
         assert vote.data_id ^ vote.receipt_hash == vote.receipt_hash ^ vote.data_id
+
+    @pytest.mark.parametrize("tag", [0, 1])
+    def test_compare_xor(self, benchmark, tag):
+        me = Hash32.fromhex("0x1111111111111111111111111111111111111111111111111111111111111111")
+        you = Hash32.fromhex("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        # assert me == you
+
+        def func0(ha0: Hash32, ha1: Hash32):
+            pivot = bytearray(ha0)
+            for idx, byte in enumerate(ha1):
+                pivot[idx] ^= byte
+
+            return Hash32(pivot)
+
+        def func1(ha0: Hash32, ha1: Hash32):
+            xored = bytes(h0 ^ h1 for h0, h1 in zip(ha0, ha1))
+
+            return Hash32(xored)
+
+        funcs = {
+            0: func0,
+            1: func1
+        }
+
+        funcs[tag]
+
+        benchmark(func0, me, you)
+        benchmark(func1, me, you)
+

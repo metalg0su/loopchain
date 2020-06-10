@@ -57,11 +57,10 @@ class TestVote_v1_0:
         assert vote.consensus_id == expected
         assert vote.data_id ^ vote.receipt_hash == vote.receipt_hash ^ vote.data_id
 
-    @pytest.mark.parametrize("tag", [0, 1])
+    @pytest.mark.parametrize("tag", range(3), ids=["current", "generate", "add_bytes"])
     def test_compare_xor(self, benchmark, tag):
         me = Hash32.fromhex("0x1111111111111111111111111111111111111111111111111111111111111111")
         you = Hash32.fromhex("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        # assert me == you
 
         def func0(ha0: Hash32, ha1: Hash32):
             pivot = bytearray(ha0)
@@ -75,13 +74,17 @@ class TestVote_v1_0:
 
             return Hash32(xored)
 
+        def func2(ha0: Hash32, ha1: Hash32):
+            pivot = b""
+            for h0, h1 in zip(ha0, ha1):
+                pivot += bytes([h0 ^ h1])
+
+            return Hash32(pivot)
+
         funcs = {
             0: func0,
-            1: func1
+            1: func1,
+            2: func2
         }
 
-        funcs[tag]
-
-        benchmark(func0, me, you)
-        benchmark(func1, me, you)
-
+        benchmark(funcs[tag], me, you)

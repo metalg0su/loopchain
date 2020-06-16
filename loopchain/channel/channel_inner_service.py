@@ -649,7 +649,7 @@ class ChannelInnerTask:
             return
 
         try:
-            self._block_manager.verify_confirm_info(unconfirmed_block)
+            self._blockchain.verify_confirm_info(unconfirmed_block)
         except ConfirmInfoInvalid as e:
             util.logger.warning(f"ConfirmInfoInvalid {e}")
         except ConfirmInfoInvalidNeedBlockSync as e:

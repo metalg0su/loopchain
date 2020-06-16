@@ -1,7 +1,6 @@
 """Block chain class with authorized blocks only"""
 
 import json
-import pickle
 import threading
 import time
 import traceback
@@ -20,7 +19,7 @@ from loopchain import utils
 from loopchain.baseservice import ScoreResponse, ObjectManager
 from loopchain.baseservice.aging_cache import AgingCache
 from loopchain.baseservice.lru_cache import lru_cache as valued_only_lru_cache
-from loopchain.blockchain.blocks import Block, BlockBuilder, BlockSerializer, BlockHeader, v0_1a
+from loopchain.blockchain.blocks import Block, BlockBuilder, BlockSerializer, BlockHeader, v0_1a, BlockVerifier
 from loopchain.blockchain.blocks import BlockProver, BlockProverType, BlockVersioner, NextRepsChangeReason
 from loopchain.blockchain.exception import *
 from loopchain.blockchain.peer_loader import PeerLoader
@@ -1406,3 +1405,41 @@ class BlockChain:
             self.__add_tx_to_block(block_builder)
 
         return block_builder
+
+    def verify_confirm_info(self, unconfirmed_block: Block):
+        unconfirmed_header = unconfirmed_block.header
+        my_height = self.block_height
+        if my_height < (unconfirmed_header.height - 2):
+            raise ConfirmInfoInvalidNeedBlockSync(
+                f"trigger block sync: my_height({my_height}), "
+                f"unconfirmed_block.header.height({unconfirmed_header.height})")
+
+        is_rep = ObjectManager().channel_service.is_support_node_function(conf.NodeFunction.Vote)
+        if is_rep and my_height == unconfirmed_header.height - 2 and not self.last_unconfirmed_block:
+            raise ConfirmInfoInvalidNeedBlockSync(
+                f"trigger block sync: my_height({my_height}), "
+                f"unconfirmed_block.header.height({unconfirmed_header.height})")
+
+        # a block is already added that same height unconfirmed_block height
+        if my_height >= unconfirmed_header.height:
+            raise ConfirmInfoInvalidAddedBlock(
+                f"block is already added my_height({my_height}), "
+                f"unconfirmed_block.header.height({unconfirmed_header.height})")
+
+        block_verifier = BlockVerifier.new(unconfirmed_header.version, self.__tx_versioner)
+        prev_block = self.get_prev_block(unconfirmed_block)
+        reps_getter = self.find_preps_addresses_by_roothash
+
+        utils.logger.spam(f"prev_block: {prev_block.header.hash if prev_block else None}")
+        if not prev_block:
+            raise NotReadyToConfirmInfo(
+                "There is no prev block or not ready to confirm block (Maybe node is starting)")
+
+        try:
+            if prev_block and prev_block.header.reps_hash and unconfirmed_header.height > 1:
+                prev_reps = reps_getter(prev_block.header.reps_hash)
+                block_verifier.verify_prev_votes(unconfirmed_block, prev_reps)
+        except Exception as e:
+            utils.logger.warning(e)
+            traceback.print_exc()
+            raise ConfirmInfoInvalid("Unconfirmed block has no valid confirm info for previous block")

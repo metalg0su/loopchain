@@ -20,7 +20,7 @@ from loopchain.blockchain.blocks import Block, BlockVerifier, BlockSerializer
 from loopchain.blockchain.blocks.block import NextRepsChangeReason
 from loopchain.blockchain.exception import (
     NotInReps, UnrecordedBlock, UnexpectedLeader, TransactionDuplicatedHashError, InvalidUnconfirmedBlock,
-    DuplicationUnconfirmedBlock, ScoreInvokeError, ConfirmInfoInvalidNeedBlockSync, ConfirmInfoInvalid
+    DuplicationUnconfirmedBlock, ScoreInvokeError
 )
 from loopchain.blockchain.next_rep_getter import RepGetter
 from loopchain.blockchain.transactions import Transaction, TransactionSerializer, v2, v3
@@ -999,44 +999,6 @@ class BlockManager:
         )
 
         return vote
-
-    def verify_confirm_info(self, unconfirmed_block: Block):
-        unconfirmed_header = unconfirmed_block.header
-        my_height = self.blockchain.block_height
-        if my_height < (unconfirmed_header.height - 2):
-            raise ConfirmInfoInvalidNeedBlockSync(
-                f"trigger block sync: my_height({my_height}), "
-                f"unconfirmed_block.header.height({unconfirmed_header.height})")
-
-        is_rep = ObjectManager().channel_service.is_support_node_function(conf.NodeFunction.Vote)
-        if is_rep and my_height == unconfirmed_header.height - 2 and not self.blockchain.last_unconfirmed_block:
-            raise ConfirmInfoInvalidNeedBlockSync(
-                f"trigger block sync: my_height({my_height}), "
-                f"unconfirmed_block.header.height({unconfirmed_header.height})")
-
-        # a block is already added that same height unconfirmed_block height
-        if my_height >= unconfirmed_header.height:
-            raise ConfirmInfoInvalidAddedBlock(
-                f"block is already added my_height({my_height}), "
-                f"unconfirmed_block.header.height({unconfirmed_header.height})")
-
-        block_verifier = BlockVerifier.new(unconfirmed_header.version, self.blockchain.tx_versioner)
-        prev_block = self.blockchain.get_prev_block(unconfirmed_block)
-        reps_getter = self.blockchain.find_preps_addresses_by_roothash
-
-        util.logger.spam(f"prev_block: {prev_block.header.hash if prev_block else None}")
-        if not prev_block:
-            raise NotReadyToConfirmInfo(
-                "There is no prev block or not ready to confirm block (Maybe node is starting)")
-
-        try:
-            if prev_block and prev_block.header.reps_hash and unconfirmed_header.height > 1:
-                prev_reps = reps_getter(prev_block.header.reps_hash)
-                block_verifier.verify_prev_votes(unconfirmed_block, prev_reps)
-        except Exception as e:
-            util.logger.warning(e)
-            traceback.print_exc()
-            raise ConfirmInfoInvalid("Unconfirmed block has no valid confirm info for previous block")
 
     async def _vote(self, unconfirmed_block: Block, round_: int):
         exc = None

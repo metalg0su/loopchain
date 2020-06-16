@@ -33,7 +33,7 @@ class ChannelStateMachine(object):
                     on_exit='_subscribe_network_on_exit'),
               State(name='Watch',
                     ignore_invalid_triggers=True,
-                    on_enter='_watch_on_enter', 
+                    on_enter='_watch_on_enter',
                     on_exit='_watch_on_exit'),
               State(name='Vote',
                     ignore_invalid_triggers=True,
@@ -152,14 +152,14 @@ class ChannelStateMachine(object):
         self.evaluate_network()
 
     def _blocksync_on_enter(self, *args, **kwargs):
-        self.__channel_service.block_manager.update_service_status(status_code.Service.block_height_sync)
+        self.__channel_service.service_status = status_code.Service.block_height_sync
 
     def _blocksync_on_exit(self, *args, **kwargs):
         self.__channel_service.update_nid()
 
         self.__channel_service.block_manager.blockchain.reset_leader_made_block_count(need_check_switched_role=True)
         self.__channel_service.block_manager.stop_block_height_sync_timer()
-        self.__channel_service.block_manager.update_service_status(status_code.Service.online)
+        self.__channel_service.block_manager.service_status = status_code.Service.online
 
     def _subscribe_network_on_enter(self, *args, **kwargs):
         self.__channel_service.start_subscribe_timer()

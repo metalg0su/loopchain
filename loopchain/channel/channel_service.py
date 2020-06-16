@@ -28,7 +28,7 @@ from loopchain.channel.channel_property import ChannelProperty
 from loopchain.channel.channel_statemachine import ChannelStateMachine
 from loopchain.consensus.runner import ConsensusRunner
 from loopchain.crypto.signature import Signer
-from loopchain.peer import BlockManager
+from loopchain.peer import BlockManager, status_code
 from loopchain.protos import loopchain_pb2
 from loopchain.store.key_value_store import KeyValueStoreError
 from loopchain.utils import loggers, command_arguments
@@ -54,6 +54,7 @@ class ChannelService:
         self.__event_system = None
         self.__tx_queue = AgingCache(max_age_seconds=conf.MAX_TX_QUEUE_AGING_SECONDS,
                                      default_item_status=TransactionStatusInQueue.normal)
+        self.__service_status = status_code.Service.online
 
         loggers.get_preset().channel_name = channel_name
         loggers.get_preset().update_logger()
@@ -116,6 +117,19 @@ class ChannelService:
     @property
     def node_subscriber(self):
         return self.__node_subscriber
+
+    @property
+    def service_status(self):
+        # Return string for compatibility.
+        if self.__service_status >= 0:
+            return "Service is online: " + \
+                   str(1 if self.state_machine.state == "BlockGenerate" else 0)
+        else:
+            return "Service is offline: " + status_code.get_status_reason(self.__service_status)
+
+    @service_status.setter
+    def service_status(self, status):
+        self.__service_status = status
 
     def serve(self):
         async def _serve():

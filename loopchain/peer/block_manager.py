@@ -18,10 +18,10 @@ from loopchain.blockchain import (BlockChain, CandidateBlocks, Epoch, Blockchain
                                   BlockHeightMismatch, RoundMismatch)
 from loopchain.blockchain.blocks import Block, BlockVerifier, BlockSerializer
 from loopchain.blockchain.blocks.block import NextRepsChangeReason
-from loopchain.blockchain.exception import (ConfirmInfoInvalid, ConfirmInfoInvalidAddedBlock, NotInReps,
-                                            NotReadyToConfirmInfo, UnrecordedBlock, UnexpectedLeader)
-from loopchain.blockchain.exception import ConfirmInfoInvalidNeedBlockSync, TransactionDuplicatedHashError
-from loopchain.blockchain.exception import InvalidUnconfirmedBlock, DuplicationUnconfirmedBlock, ScoreInvokeError
+from loopchain.blockchain.exception import (
+    NotInReps, UnrecordedBlock, UnexpectedLeader, TransactionDuplicatedHashError, InvalidUnconfirmedBlock,
+    DuplicationUnconfirmedBlock, ScoreInvokeError, ConfirmInfoInvalidNeedBlockSync, ConfirmInfoInvalid
+)
 from loopchain.blockchain.next_rep_getter import RepGetter
 from loopchain.blockchain.transactions import Transaction, TransactionSerializer, v2, v3
 from loopchain.blockchain.types import ExternalAddress
@@ -30,7 +30,6 @@ from loopchain.blockchain.votes import Vote, Votes
 from loopchain.blockchain.votes.v0_5 import LeaderVote
 from loopchain.channel.channel_property import ChannelProperty
 from loopchain.jsonrpc import GenericJsonRpcServerError
-from loopchain.peer import status_code
 from loopchain.peer.consensus_siever import ConsensusSiever
 from loopchain.protos import loopchain_pb2, loopchain_pb2_grpc, message_code
 from loopchain.tools.grpc_helper import GRPCHelper
@@ -71,7 +70,6 @@ class BlockManager:
         self.__block_height_thread_pool: ThreadPoolExecutor = ThreadPoolExecutor(1, 'BlockHeightSyncThread')
         self.__block_height_future: Future = None
         self.set_peer_type(loopchain_pb2.PEER)
-        self.__service_status = status_code.Service.online
 
         # old_block_hashes[height][new_block_hash] = old_block_hash
         self.__old_block_hashes: DefaultDict[int, Dict[Hash32, Hash32]] = defaultdict(dict)
@@ -84,18 +82,6 @@ class BlockManager:
     @property
     def channel_name(self):
         return self.__channel_name
-
-    @property
-    def service_status(self):
-        # Return string for compatibility.
-        if self.__service_status >= 0:
-            return "Service is online: " + \
-                   str(1 if self.__channel_service.state_machine.state == "BlockGenerate" else 0)
-        else:
-            return "Service is offline: " + status_code.get_status_reason(self.__service_status)
-
-    def update_service_status(self, status):
-        self.__service_status = status
 
     @property
     def peer_type(self):

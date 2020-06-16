@@ -55,6 +55,7 @@ class ChannelService:
         self.__tx_queue = AgingCache(max_age_seconds=conf.MAX_TX_QUEUE_AGING_SECONDS,
                                      default_item_status=TransactionStatusInQueue.normal)
         self.__service_status = status_code.Service.online
+        self.__peer_type = None
 
         loggers.get_preset().channel_name = channel_name
         loggers.get_preset().update_logger()
@@ -130,6 +131,10 @@ class ChannelService:
     @service_status.setter
     def service_status(self, status):
         self.__service_status = status
+
+    @property
+    def peer_type(self):
+        return self.__peer_type
 
     def serve(self):
         async def _serve():
@@ -410,6 +415,8 @@ class ChannelService:
                 event_system=self.__event_system,
                 tx_queue=self.__tx_queue
             )
+            self.__peer_type = loopchain_pb2.PEER
+
         except KeyValueStoreError as e:
             utils.exit_and_msg("KeyValueStoreError(" + str(e) + ")")
 
@@ -543,14 +550,6 @@ class ChannelService:
         logging.debug(f"shutdown_peer() kwargs = {kwargs}")
         StubCollection().peer_stub.sync_task().stop(message=kwargs['message'])
 
-    def set_peer_type(self, peer_type):
-        """Set peer type when peer init only
-
-        :param peer_type:
-        :return:
-        """
-        self.__block_manager.set_peer_type(peer_type)
-
     def save_peer_manager(self, peer_manager):
         """Save peer_list to leveldb
 
@@ -579,7 +578,7 @@ class ChannelService:
             logger_preset.is_leader = False
         logger_preset.update_logger()
 
-        self.__block_manager.set_peer_type(peer_type)
+        self.__peer_type = peer_type
 
     def _is_genesis_node(self):
         return ('genesis_data_path' in self.get_channel_option()
@@ -642,7 +641,7 @@ class ChannelService:
             peer_type = loopchain_pb2.PEER
             self.state_machine.turn_to_peer()
 
-        self.__block_manager.set_peer_type(peer_type)
+        self.__peer_type = peer_type
         self.turn_on_leader_complain_timer()
 
     def score_write_precommit_state(self, block: Block):

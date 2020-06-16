@@ -62,14 +62,12 @@ class BlockManager:
 
         self.__tx_queue: AgingCache = tx_queue
         self.blockchain = BlockChain(channel_name, store_id, self, self.__tx_queue)
-        self.__peer_type = None
         self.__consensus_algorithm = None
         self.candidate_blocks = CandidateBlocks(self.blockchain)
         self.__block_height_sync_bad_targets = {}
         self.__block_height_sync_lock = threading.Lock()
         self.__block_height_thread_pool: ThreadPoolExecutor = ThreadPoolExecutor(1, 'BlockHeightSyncThread')
         self.__block_height_future: Future = None
-        self.set_peer_type(loopchain_pb2.PEER)
 
         # old_block_hashes[height][new_block_hash] = old_block_hash
         self.__old_block_hashes: DefaultDict[int, Dict[Hash32, Hash32]] = defaultdict(dict)
@@ -84,15 +82,8 @@ class BlockManager:
         return self.__channel_name
 
     @property
-    def peer_type(self):
-        return self.__peer_type
-
-    @property
     def consensus_algorithm(self):
         return self.__consensus_algorithm
-
-    def set_peer_type(self, peer_type):
-        self.__peer_type = peer_type
 
     def set_old_block_hash(self, block_height: int, new_block_hash: Hash32, old_block_hash: Hash32):
         self.__old_block_hashes[block_height][new_block_hash] = old_block_hash

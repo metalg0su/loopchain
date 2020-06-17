@@ -206,10 +206,6 @@ class BlockManager:
                 else:
                     break
 
-    def restore_tx_status(self, tx: Transaction):
-        util.logger.debug(f"restore_tx_status() tx : {tx}")
-        self.__tx_queue.set_item_status(tx.hash.hex(), TransactionStatusInQueue.normal)
-
     def __validate_duplication_of_unconfirmed_block(self, unconfirmed_block: Block):
         if self.blockchain.last_block.header.height >= unconfirmed_block.header.height:
             raise InvalidUnconfirmedBlock("The unconfirmed block has height already added.")

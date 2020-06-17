@@ -1195,7 +1195,7 @@ class BlockChain:
                             break
 
                 for tx in dropped_transactions:  # type: Transaction
-                    self.__block_manager.restore_tx_status(tx)
+                    self.restore_tx_status(tx)
                     block_builder.transactions.pop(tx.hash)
                 utils.logger.debug(f"_process_added_transactions() dropped tx length = {len(dropped_transactions)}")
 
@@ -1443,3 +1443,7 @@ class BlockChain:
             utils.logger.warning(e)
             traceback.print_exc()
             raise ConfirmInfoInvalid("Unconfirmed block has no valid confirm info for previous block")
+
+    def restore_tx_status(self, tx: Transaction):
+        utils.logger.debug(f"restore_tx_status() tx : {tx}")
+        self.__tx_queue.set_item_status(tx.hash.hex(), TransactionStatusInQueue.normal)

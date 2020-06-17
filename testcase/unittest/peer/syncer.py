@@ -1,4 +1,4 @@
-from loopchain.peer import Syncer
+from loopchain.peer.syncer import Syncer
 
 
 class TestSyncer:

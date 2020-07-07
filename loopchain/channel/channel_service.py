@@ -264,10 +264,7 @@ class ChannelService:
         await self._init_rs_client()
         self.__block_manager.blockchain.init_crep_reps()
         await self._select_node_type()
-        try:
-            self.__ready_to_height_sync()
-        except ConsensusChanged:
-            self.state_machine.start_lft()
+        self.__ready_to_height_sync()
         self.__state_machine.block_sync()
 
     async def subscribe_network(self):

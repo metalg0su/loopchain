@@ -11,6 +11,8 @@ class FilePath:
         return self._root_path / "channel_manage_data.json"
 
     @property
-    def peer_configs(self) -> Iterable[Path]:
+    def peer_configs(self) -> Iterable[str]:
         config_root: Path = self._root_path / "_tools"
-        return sorted(config_root.glob("test_*_conf.json"))
+
+        for path in sorted(config_root.glob("test_*_conf.json")):
+            yield str(path.absolute())

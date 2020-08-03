@@ -624,10 +624,19 @@ class BlockManager:
 
         while max_height > my_height:
             async def loop_run():
+                lft_height: int = self.blockchain.block_versioner.get_start_height("1.0")
+                if max_height == lft_height:
+                    # Write block until (lft - 2) height
+                    max_height_at_sync = max_height - 2
+                    unconfirmed_height_at_sync = max_height - 2
+                else:
+                    max_height_at_sync = max_height
+                    unconfirmed_height_at_sync = unconfirmed_block_height
+
                 fts = list()
                 fts.append(asyncio.ensure_future(self.__block_request(peer_stubs, my_height, max_height)))
                 fts.append(asyncio.ensure_future(
-                    self.__block_sync(peer_stubs, my_height, unconfirmed_block_height, max_height)
+                    self.__block_sync(peer_stubs, my_height, unconfirmed_height_at_sync, max_height_at_sync)
                 ))
 
                 result = await asyncio.gather(*fts)
@@ -637,11 +646,17 @@ class BlockManager:
             my_height = result[1][0]
             max_height = result[1][1]
 
-            last_block_height = self.__get_block_last_height()
+            lft_candidate_height: int = self.blockchain.block_versioner.get_start_height("1.0") - 1
+            is_before_lft = max_height == lft_candidate_height
+            if is_before_lft:
+                self._write_unconfirmed_block_as_candidate()
+                break
+            else:
+                last_block_height = self.__get_block_last_height()
 
-            if last_block_height > max_height:
-                util.logger.spam(f"set max_height :{max_height} -> {last_block_height}")
-                max_height = last_block_height
+                if last_block_height > max_height:
+                    util.logger.spam(f"set max_height :{max_height} -> {last_block_height}")
+                    max_height = last_block_height
 
         return my_height, max_height
 
@@ -685,9 +700,14 @@ class BlockManager:
         # Make Peer Stub List [peer_stub, ...] and get max_height of network
         try:
             max_height, unconfirmed_block_height, peer_stubs = self.__get_peer_stub_list()
-            height_before_lft: int = self.blockchain.block_versioner.get_start_height("1.0") - 1
-            max_height = min(height_before_lft, max_height)
-            unconfirmed_block_height = min(height_before_lft, unconfirmed_block_height)
+            try:
+                lft_height: int = self.blockchain.block_versioner.get_start_height("1.0")
+            except RuntimeError as e:
+                util.logger.exception(f"Block height 1.0 is not set in configure.", exc_info=e)
+                lft_height = -1
+            else:
+                max_height = min(lft_height, max_height)
+                unconfirmed_block_height = min(lft_height, unconfirmed_block_height)
 
             if self.blockchain.last_unconfirmed_block is not None:
                 self.candidate_blocks.remove_block(self.blockchain.last_unconfirmed_block.header.hash)
@@ -714,10 +734,15 @@ class BlockManager:
         else:
             util.logger.debug(f"block_height_sync is complete.")
             last_commit_block: Union[Block, Data] = self.blockchain.last_block
-            if last_commit_block and last_commit_block.header.height == height_before_lft:
+            if last_commit_block and last_commit_block.header.height == lft_height-1:
                 self.__channel_service.state_machine.start_lft()
             else:
                 self.__channel_service.state_machine.complete_sync()
+
+    def _write_unconfirmed_block_as_candidate(self):
+        # TODO: Write (lft - 1) height block as candidate
+        last_block = self.blockchain.last_block
+        util.logger.notice(f"_write_unconfirmed_block_as_candidate::{last_block.header.height, last_block}")
 
     def get_next_leader(self) -> Optional[str]:
         """get next leader from last_block of BlockChain. for new_epoch and set_peer_type_in_channel

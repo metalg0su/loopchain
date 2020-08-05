@@ -996,6 +996,7 @@ class BlockManager:
         exc = None
         try:
             block_version = self.blockchain.block_versioner.get_version(unconfirmed_block.header.height)
+            block_version = self.blockchain.try_lft_conversion(block_version)
             block_verifier = BlockVerifier.new(block_version, self.blockchain.tx_versioner)
             block_verifier.invoke_func = self.blockchain.score_invoke
             reps_getter = self.blockchain.find_preps_addresses_by_roothash

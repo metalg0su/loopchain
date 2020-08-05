@@ -758,15 +758,18 @@ class ChannelInnerTask:
         except json.decoder.JSONDecodeError:
             util.logger.warning(f"This vote({vote_dumped}) may be from old version.")
         else:
-            height: str = vote_serialized.get("blockHeight")  # FIXME
-            version = self._blockchain.block_versioner.get_version(int(height, 16))
-            if parse_version(version) == parse_version("1.0"):
+            height: str = int(vote_serialized.get("blockHeight"), 16)  # FIXME
+            version = self._blockchain.block_versioner.get_version(height)
+            lft_start_height: str = self._blockchain.block_versioner.get_start_height("1.0")
+            if lft_start_height < height:
+                print("1.0 vote!")
                 from loopchain.blockchain.votes import v1_0
                 vote = v1_0.BlockVote._deserialize(**vote_serialized)
                 vote_round = vote.round_num
                 vote_block_hash = vote.data_id
                 voter = vote.voter_id
             else:
+                print("0.5 vote!")
                 vote = Vote.get_block_vote_class(version).deserialize(vote_serialized)
                 vote_round = vote.round
                 vote_block_hash = vote.block_hash

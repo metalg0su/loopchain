@@ -271,6 +271,15 @@ class ConsensusSiever(ConsensusBase):
 
             if is_unrecorded_block:
                 self._blockchain.last_unconfirmed_block = None
+            elif self._is_lft_height(candidate_block):
+                util.logger.spam(f"Write {last_unconfirmed_block.header.hash} as candidate.")
+                ObjectManager().channel_service.consensus_runner._write_candidate_info(
+                    candidate_block=last_unconfirmed_block,
+                    candidate_votes=candidate_block.body.prev_votes
+                )
+                util.logger.spam(f"Ready to Transition to Consensus!")
+                ObjectManager().channel_service.reset_leader(self._block_manager.epoch.leader_id)
+                return
             else:
                 self._block_manager.vote_unconfirmed_block(candidate_block,
                                                            self._block_manager.epoch.round,
@@ -287,6 +296,15 @@ class ConsensusSiever(ConsensusBase):
                     ObjectManager().channel_service.reset_leader(self._block_manager.epoch.leader_id)
 
             self.__block_generation_timer.call()
+
+    def _is_lft_height(self, candidate_block: Block) -> bool:
+        block_height = candidate_block.header.height
+        lft_height = self._blockchain.block_versioner.get_start_height("1.0")
+
+        if block_height == lft_height:
+            return True
+        return False
+
 
     async def _wait_for_voting(self, block: 'Block'):
         """Waiting validator's vote for the candidate_block.

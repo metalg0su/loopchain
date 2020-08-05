@@ -210,7 +210,7 @@ class ConsensusRunner(EventRegister):
         batch = store.WriteBatch()
 
         block_serialized = self._serialize_block(candidate_block)
-        candidate_height_key = self._get_candidate_block_key_by_height(candidate_block.header.height)
+        candidate_height_key = blockchain.get_candidate_block_key_by_height(candidate_block.header.height)
         batch.put(candidate_height_key, block_serialized)
 
         block_hash_encoded = candidate_block.header.hash.hex().encode("utf-8")
@@ -224,17 +224,12 @@ class ConsensusRunner(EventRegister):
         blockchain = self._block_manager.blockchain
         target_height: int = candidate_block.header.height - 1
 
-        candidate_block_key = self._get_candidate_block_key_by_height(target_height)
+        candidate_block_key = blockchain.get_candidate_block_key_by_height(target_height)
         batch.delete(candidate_block_key)
 
         block_hash_encoded = candidate_block.header.prev_hash.hex().encode("utf-8")
         candidate_vote_key = blockchain.CANDIDATE_CONFIRM_INFO_KEY + block_hash_encoded
         batch.delete(candidate_vote_key)
-
-    def _get_candidate_block_key_by_height(self, height: int):
-        candidate_height_key = height.to_bytes(conf.BLOCK_HEIGHT_BYTES_LEN, byteorder="big")
-
-        return self._block_manager.blockchain.LAST_CANDIDATE_KEY + candidate_height_key
 
     def _find_votes_by_hash(self, block_hash: Hash32) -> Iterator[BlockVote]:
         block_votes: bytes = self._block_manager.blockchain.find_confirm_info_by_hash(block_hash)
@@ -255,7 +250,7 @@ class ConsensusRunner(EventRegister):
         return confirm_info.encode('utf-8')
 
     def find_candidate_block_by_height(self, height) -> Block:
-        candidate_key = self._get_candidate_block_key_by_height(height)
+        candidate_key = self._block_manager.blockchain.get_candidate_block_key_by_height(height)
         block_serialized = self._block_manager.blockchain.blockchain_store.get(candidate_key)
         block_serialized = cast(dict, json.loads(block_serialized))
 

@@ -1455,3 +1455,8 @@ class BlockChain:
             return "0.5"
         else:
             return version
+
+    def get_candidate_block_key_by_height(self, height: int):
+        candidate_height_key = height.to_bytes(conf.BLOCK_HEIGHT_BYTES_LEN, byteorder="big")
+
+        return self.LAST_CANDIDATE_KEY + candidate_height_key

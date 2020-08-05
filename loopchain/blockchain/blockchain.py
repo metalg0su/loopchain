@@ -1053,6 +1053,7 @@ class BlockChain:
 
     def block_dumps(self, block: Union['Block', "Data"]) -> bytes:
         block_version = self.__block_versioner.get_version(block.header.height)
+        block_version = self._try_lft_conversion(block_version)
         block_serializer = BlockSerializer.new(block_version, self.__tx_versioner)
         block_serialized = block_serializer.serialize(block)
 
@@ -1427,6 +1428,7 @@ class BlockChain:
         last_block = self.last_unconfirmed_block or self.last_block
         block_height = last_block.header.height + 1
         block_version = self.__block_versioner.get_version(block_height)
+        block_version = self._try_lft_conversion(block_version)
         block_builder = BlockBuilder.new(block_version, self.__tx_versioner)
         block_builder.fixed_timestamp = int(time.time() * 1_000_000)
         block_builder.prev_votes = prev_votes
@@ -1442,3 +1444,13 @@ class BlockChain:
             self.__add_tx_to_block(block_builder)
 
         return block_builder
+
+    def _try_lft_conversion(self, version):
+        """Temporary method.
+
+        Created to avoid scattered logical comparison.
+        """
+        if version == "1.0":
+            return "0.5"
+        else:
+            return version

@@ -28,6 +28,7 @@ from loopchain.blockchain.transactions import TransactionSerializer, Transaction
 from loopchain.blockchain.types import Hash32, ExternalAddress, TransactionStatusInQueue
 from loopchain.blockchain.votes import Votes
 from loopchain.blockchain.votes.v0_1a import BlockVotes
+from loopchain.blockchain.votes.v1_0 import BlockVote
 from loopchain.channel.channel_property import ChannelProperty
 from loopchain.configure_default import NodeType
 from loopchain.store.key_value_store import KeyValueStore, KeyValueStoreWriteBatch

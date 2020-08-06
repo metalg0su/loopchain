@@ -16,12 +16,12 @@
 import asyncio
 import json
 from functools import partial
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional, cast, Sequence
 
 import loopchain.utils as util
 from loopchain import configure as conf
 from loopchain.baseservice import ObjectManager, TimerService, SlotTimer, Timer
-from loopchain.blockchain.blocks import Block
+from loopchain.blockchain.blocks import Block, BlockSerializer
 from loopchain.blockchain.exception import NotEnoughVotes, ThereIsNoCandidateBlock, InvalidBlock
 from loopchain.blockchain.transactions import TransactionSerializer
 from loopchain.blockchain.types import ExternalAddress, Hash32
@@ -33,7 +33,9 @@ from loopchain.utils.message_queue import StubCollection
 
 if TYPE_CHECKING:
     from loopchain.blockchain import BlockBuilder
+    from loopchain.blockchain.votes.v0_5 import BlockVote
     from loopchain.peer import BlockManager
+    from loopchain.blockchain.blocks.v0_5 import BlockHeader, BlockBody
 
 
 class ConsensusSiever(ConsensusBase):
@@ -195,6 +197,7 @@ class ConsensusSiever(ConsensusBase):
                 return
 
             last_unconfirmed_block: Optional[Block] = self._blockchain.last_unconfirmed_block
+            print("Last unconfirmed block!: ", last_unconfirmed_block)
             last_block_header = self._blockchain.last_block.header
 
             if last_block_header.prep_changed:
@@ -245,7 +248,8 @@ class ConsensusSiever(ConsensusBase):
                         (last_unconfirmed_block and len(last_unconfirmed_block.body.transactions) == 0):
                     need_next_call = True
                 elif last_unconfirmed_block:
-                    await self.__add_block(last_unconfirmed_block)
+                    if not self._is_lft_height(last_unconfirmed_block):
+                        await self.__add_block(last_unconfirmed_block)
             except (NotEnoughVotes, InvalidBlock):
                 need_next_call = True
             except ThereIsNoCandidateBlock:
@@ -272,8 +276,7 @@ class ConsensusSiever(ConsensusBase):
             if is_unrecorded_block:
                 self._blockchain.last_unconfirmed_block = None
             elif self._is_lft_height(candidate_block):
-                util.logger.spam(f"Write {last_unconfirmed_block.header.hash} as candidate.")
-                ObjectManager().channel_service.consensus_runner._write_candidate_info(
+                self._write_candidate_info(
                     candidate_block=last_unconfirmed_block,
                     candidate_votes=candidate_block.body.prev_votes
                 )
@@ -297,6 +300,71 @@ class ConsensusSiever(ConsensusBase):
 
             self.__block_generation_timer.call()
 
+    # FIXME: Temporary
+    def _write_candidate_info(self, candidate_block, candidate_votes):
+        """Write candidate info in batch."""
+        util.logger.spam(f"Write {candidate_block.header.hash} as candidate.")
+
+        blockchain = self._block_manager.blockchain
+        store: 'KeyValueStore' = blockchain.blockchain_store
+        batch = store.WriteBatch()
+
+        block_serialized = self._serialize_block_v0_5_as_v1_0(candidate_block)
+        candidate_height_key = blockchain.get_candidate_block_key_by_height(candidate_block.header.height)
+        batch.put(candidate_height_key, block_serialized)
+
+        block_hash_encoded = candidate_block.header.hash.hex().encode("utf-8")
+        votes_serialized = self._serialize_votes_v0_5_as_v1_0(candidate_block, candidate_votes)
+        batch.put(blockchain.CONFIRM_INFO_KEY + block_hash_encoded, votes_serialized)
+
+        batch.write()
+
+    def _serialize_block_v0_5_as_v1_0(self, block: Block) -> bytes:
+        from loopchain.blockchain.blocks.v1_0 import (
+            Block as Block_V1_0, BlockHeader as BlockHeader_V1_0, BlockBody as BlockBody_V1_0
+        )
+
+        prev_block: Block = self._blockchain.find_block_by_hash32(block.header.prev_hash)
+        orig_header: "BlockHeader" = block.header
+        header_v1_0 = BlockHeader_V1_0(
+            epoch=1,  # Epoch 0 is treated as Genesis
+            round=0,  # Need to discuss
+            validators_hash=orig_header.reps_hash,
+            next_validators_hash=orig_header.next_reps_hash,
+            prev_votes_hash=orig_header.prev_votes_hash,
+            transactions_hash=orig_header.transactions_hash,
+            prev_state_hash=prev_block.header.state_hash,
+            prev_receipts_hash=prev_block.header.receipts_hash,
+            prev_logs_bloom=prev_block.header.logs_bloom
+        )
+
+        orig_body: "BlockBody" = block.body
+        body_v1_0 = BlockBody_V1_0(
+            transactions=orig_body.transactions,
+            prev_votes=orig_body.prev_votes
+        )
+
+        block_v1_0 = Block_V1_0(header_v1_0, body_v1_0)
+        return json.dumps(block_v1_0.serialize()).encode("utf-8")
+
+    def _serialize_votes_v0_5_as_v1_0(self, block: Block, votes: Sequence[BlockVote]) -> bytes:
+        from loopchain.blockchain.votes.v1_0 import BlockVote as BlockVote_V1_0
+
+        votes_v1_0 = []
+        for vote_orig in votes:
+            vote_v1_0 = BlockVote_V1_0(
+                data_id=vote_orig.block_hash,
+                commit_id=block.header.prev_hash,
+                voter_id=vote_orig.rep,
+                epoch_num=1,  # Match to candidate block
+                round_num=0,
+                state_hash=block.header.state_hash,
+                receipt_hash=
+            )
+            votes_v1_0.append(vote_v1_0)
+
+        return json.dumps(votes_v1_0)
+
     def _is_lft_height(self, candidate_block: Block) -> bool:
         block_height = candidate_block.header.height
         lft_height = self._blockchain.block_versioner.get_start_height("1.0")
@@ -304,7 +372,6 @@ class ConsensusSiever(ConsensusBase):
         if block_height == lft_height:
             return True
         return False
-
 
     async def _wait_for_voting(self, block: 'Block'):
         """Waiting validator's vote for the candidate_block.

@@ -40,8 +40,6 @@ install:
 	$(PIP_INSTALL) git+https://github.com/icon-project/icon-service.git@1.2.3
 	$(PIP_INSTALL) git+https://github.com/icon-project/icon-commons.git@1.0.5.2
 	$(PIP_INSTALL) git+https://github.com/icon-project/icon-rpc-server.git@1.2.10
-	$(PIP_INSTALL) git+https://github.com/icon-project/earlgrey@0.0.4
-	$(PIP_INSTALL) tbears
 	$(PIP_INSTALL_REQUIREMENTS)
 
 # Generate python gRPC proto and generate a key

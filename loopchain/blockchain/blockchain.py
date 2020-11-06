@@ -57,8 +57,8 @@ class BlockChain:
         return self._last_unconfirmed_block
 
     @last_unconfirmed_block.setter
-    def last_unconfirmed_block(self, b):
-        logging.warning(f"last_unconfirmed_block set as :{b}")
+    def last_unconfirmed_block(self, block):
+        logging.warning(f"last_unconfirmed_block set as :{block}")
         self._last_unconfirmed_block = block
 
     def __init__(self, blockchain_db=None, channel_name=None):

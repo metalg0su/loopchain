@@ -51,6 +51,16 @@ class BlockChain:
     CONFIRM_INFO_KEY = b'confirm_info_key'
     INVOKE_RESULT_BLOCK_HEIGHT_KEY = b'invoke_result_block_height_key'
 
+    @property
+    def last_unconfirmed_block(self):
+        logging.warning(f"last_unconfirmed_block get: {self._last_unconfirmed_block}")
+        return self._last_unconfirmed_block
+
+    @last_unconfirmed_block.setter
+    def last_unconfirmed_block(self, b):
+        logging.warning(f"last_unconfirmed_block set as :{b}")
+        self._last_unconfirmed_block = block
+
     def __init__(self, blockchain_db=None, channel_name=None):
         if channel_name is None:
             channel_name = conf.LOOPCHAIN_DEFAULT_CHANNEL
@@ -59,7 +69,7 @@ class BlockChain:
         # last block in block db
         self.__last_block = None
         # last unconfirmed block that the leader broadcast.
-        self.last_unconfirmed_block = None
+        self._last_unconfirmed_block = None
         self.__channel_name = channel_name
         self.__peer_id = ChannelProperty().peer_id
 
@@ -280,6 +290,7 @@ class BlockChain:
             next_total_tx = self.__write_block_data(block, confirm_info)
 
             self.__last_block = block
+            print("ADDED... last block is set: ", block)
             self.__block_height = self.__last_block.header.height
             self.__total_tx = next_total_tx
             logging.debug(f"blockchain add_block set block_height({self.__block_height}), "
@@ -726,6 +737,7 @@ class BlockChain:
         logging.debug(f"ENGINE-303 init_blockchain: {self.__block_height}")
 
     def generate_genesis_block(self, reps: List[ExternalAddress]):
+        print("generate_genesis_block::reps", reps)
         tx_info = None
         nid = NID.unknown.value
         genesis_data_path = conf.CHANNEL_OPTION[self.__channel_name]["genesis_data_path"]

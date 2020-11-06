@@ -183,6 +183,8 @@ class PeerService:
                 channels = util.load_json_data(conf.CHANNEL_MANAGE_DATA_PATH)
 
                 if conf.ENABLE_CHANNEL_AUTH:
+                    print("CHANNELS?: ", channels, self.__peer_id)
+                    print("NOEKEYS??: ", self.__node_keys)
                     filtered_channels = {channel: channels[channel] for channel in channels
                                          for peer in channels[channel]['peers']
                                          if self.__peer_id == peer['id']}

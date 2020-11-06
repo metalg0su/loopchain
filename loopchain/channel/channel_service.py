@@ -629,6 +629,9 @@ class ChannelService:
         blockchain = self.block_manager.get_blockchain()
 
         blockchain.init_blockchain()
+        print("height??: ", blockchain.block_height, type(blockchain.block_height))
+        print("CHANNELOPTION?: ", 'genesis_data_path' in conf.CHANNEL_OPTION[ChannelProperty().name])
+        print("is true? :", blockchain.block_height == -1, 'genesis_data_path' in conf.CHANNEL_OPTION[ChannelProperty().name])
         if blockchain.block_height == -1 and 'genesis_data_path' in conf.CHANNEL_OPTION[ChannelProperty().name]:
             self.generate_genesis_block()
         elif blockchain.block_height > -1:
